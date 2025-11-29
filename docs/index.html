@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link-Like Resonance</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="title">🎵 Link-Like Resonance</h1>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <!-- 検索セクション -->
+            <section class="search-section">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="楽曲名で検索..." class="search-input">
+                    <button id="clearBtn" class="clear-btn" style="display: none;">✕</button>
+                </div>
+                <div class="filter-controls">
+                    <select id="artistFilter" class="filter-select">
+                        <option value="">すべてのアーティスト</option>
+                    </select>
+                    <select id="memberFilter" class="filter-select">
+                        <option value="">すべてのメンバー</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 楽曲一覧セクション -->
+            <section class="songs-section">
+                <div class="section-header">
+                    <h2 class="section-title">楽曲一覧</h2>
+                    <div class="selection-controls">
+                        <div class="basic-controls">
+                            <button id="selectAllBtn" class="control-btn">全選択</button>
+                            <button id="clearSelectionBtn" class="control-btn">選択解除</button>
+                        </div>
+                        <div class="artist-controls">
+                            <button id="artistSelectionBtn" class="control-btn">アーティスト別選択</button>
+                            <button id="memberSelectionBtn" class="control-btn">メンバー別選択</button>
+                            <div id="artistSelectionPanel" class="artist-panel" style="display: none;">
+                                <div class="artist-panel-header">
+                                    <h4>アーティスト別選択</h4>
+                                    <button id="closeArtistPanelBtn" class="close-btn">×</button>
+                                </div>
+                                <div class="artist-checkboxes" id="artistCheckboxes">
+                                    <!-- アーティストチェックボックスが挿入される -->
+                                </div>
+                                <div class="artist-panel-controls">
+                                    <button id="selectAllArtistsBtn" class="control-btn">全アーティスト選択</button>
+                                    <button id="clearAllArtistsBtn" class="control-btn">全解除</button>
+                                </div>
+                            </div>
+                            <div id="memberSelectionPanel" class="member-panel" style="display: none;">
+                                <div class="member-panel-header">
+                                    <h4>メンバー別選択</h4>
+                                    <button id="closeMemberPanelBtn" class="close-btn">×</button>
+                                </div>
+                                <div class="member-checkboxes" id="memberCheckboxes">
+                                    <!-- メンバーチェックボックスが挿入される -->
+                                </div>
+                                <div class="member-panel-controls">
+                                    <button id="selectAllMembersBtn" class="control-btn">全メンバー選択</button>
+                                    <button id="clearAllMembersBtn" class="control-btn">全解除</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="visualizeBtn" class="visualize-btn" disabled>選択楽曲を可視化 (<span id="selectedCount">0</span>曲)</button>
+                    </div>
+                </div>
+                <div class="songs-grid" id="songsGrid">
+                    <!-- 楽曲カードがここに挿入される -->
+                </div>
+                <div class="loading" id="loading">読み込み中...</div>
+                <div class="no-results" id="noResults" style="display: none;">
+                    検索条件に一致する楽曲が見つかりませんでした
+                </div>
+            </section>
+
+            <!-- 類似楽曲セクション -->
+            <section class="similar-section" id="similarSection" style="display: none;">
+                <h2 class="section-title">類似楽曲</h2>
+                <div class="selected-song" id="selectedSong">
+                    <!-- 選択された楽曲の情報がここに表示される -->
+                </div>
+                <div class="similar-songs" id="similarSongs">
+                    <!-- 類似楽曲がここに表示される -->
+                </div>
+                <button id="backBtn" class="back-btn">楽曲一覧に戻る</button>
+            </section>
+
+            <!-- 可視化セクション -->
+            <section class="visualization-section" id="visualizationSection" style="display: none;">
+                <h2 class="section-title">Embedding可視化</h2>
+                <div class="visualization-controls">
+                    <div class="control-group">
+                        <label for="methodSelect">次元削減手法:</label>
+                        <select id="methodSelect" class="filter-select">
+                            <option value="pca">PCA</option>
+                            <option value="tsne">t-SNE</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="showLabelsCheck" checked>
+                            楽曲名を表示
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="colorByGenreCheck" checked>
+                            ジャンル別に色分け
+                        </label>
+                    </div>
+                    <button id="updateVisualizationBtn" class="control-btn">可視化更新</button>
+                    <button id="backToSongsBtn" class="back-btn">楽曲一覧に戻る</button>
+                </div>
+                <div class="visualization-container">
+                    <canvas id="visualizationCanvas"></canvas>
+                    <div class="visualization-info" id="visualizationInfo">
+                        <!-- 可視化の情報が表示される -->
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="copyright">
+                © 2024 楽曲ベクトル検索システム<br>
+                <small>歌詞データは著作権保護のため表示されません</small>
+            </p>
+            <div class="stats" id="stats">
+                <!-- 統計情報がここに表示される -->
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="js/data-loader.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/selection.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

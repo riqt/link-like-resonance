@@ -1,0 +1,639 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #b94047 0%, #8b3139 100%);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header */
+.header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    padding: 20px 0;
+    margin-bottom: 30px;
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-align: center;
+    background: linear-gradient(45deg, #b94047, #d4545b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Main Content */
+.main {
+    flex: 1;
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Search Section */
+.search-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 15px 50px 15px 20px;
+    font-size: 1.1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    border-color: #b94047;
+}
+
+.clear-btn {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #999;
+    transition: color 0.3s;
+}
+
+.clear-btn:hover {
+    color: #333;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.filter-select:focus {
+    border-color: #b94047;
+}
+
+/* Songs Grid */
+.songs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.song-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.song-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: #667eea;
+}
+
+.song-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+    line-height: 1.3;
+}
+
+.song-meta {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.song-meta span {
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* .song-id スタイルを削除（ID非表示のため） */
+
+/* Similar Songs Section */
+.similar-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.selected-song {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.selected-song .song-title {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.selected-song .song-meta {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+}
+
+.similar-songs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.similar-song {
+    position: relative;
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    padding-top: 20px; /* カラーバー分のスペース確保 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid var(--artist-color, #b94047);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.similar-song:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border-left-color: var(--artist-color, #b94047);
+}
+
+.similarity-score {
+    background: #b94047;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+.rank-badge {
+    background: #8b3139;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.selection-controls {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.basic-controls, .artist-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.artist-controls {
+    position: relative;
+}
+
+/* Buttons */
+.back-btn, .control-btn, .visualize-btn {
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.back-btn {
+    background: linear-gradient(45deg, #b94047, #8b3139);
+    color: white;
+}
+
+.control-btn {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    border: 2px solid #e0e0e0;
+}
+
+.control-btn:hover {
+    background: white;
+    border-color: #b94047;
+    transform: translateY(-1px);
+}
+
+.visualize-btn {
+    background: linear-gradient(45deg, #b94047, #d4545b);
+    color: white;
+    font-weight: 600;
+}
+
+.visualize-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.visualize-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(185, 64, 71, 0.3);
+}
+
+.back-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(185, 64, 71, 0.3);
+}
+
+/* Song Cards with Selection */
+.song-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 20px;
+    padding-top: 25px; /* カラーバー分のスペース確保 */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+    cursor: pointer;
+    border: 2px solid transparent;
+    overflow: hidden;
+}
+
+.song-card.selected {
+    border-color: var(--artist-color, #b94047);
+    background: rgba(185, 64, 71, 0.1);
+}
+
+.song-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: var(--artist-color, #b94047);
+}
+
+/* Artist Color Bar */
+.artist-color-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--artist-color, #cccccc);
+    border-radius: 12px 12px 0 0;
+}
+
+.song-card-checkbox {
+    position: absolute;
+    top: 20px; /* カラーバーの下に配置 */
+    right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Visualization Section */
+.visualization-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.visualization-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(185, 64, 71, 0.05);
+    border-radius: 10px;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-group label {
+    font-weight: 600;
+    color: #333;
+}
+
+.visualization-container {
+    position: relative;
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+#visualizationCanvas {
+    width: 100%;
+    height: 600px;
+    border-radius: 8px;
+}
+
+.visualization-info {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(185, 64, 71, 0.05);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Artist and Member Selection Panel */
+.artist-panel, .member-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    min-width: 300px;
+    max-width: 400px;
+    max-height: 500px;
+    border: 2px solid #e0e0e0;
+}
+
+.artist-panel-header, .member-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.artist-panel-header h4, .member-panel-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #999;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.close-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.artist-checkboxes, .member-checkboxes {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 5px;
+}
+
+.artist-checkbox-item, .member-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.artist-checkbox-item:last-child, .member-checkbox-item:last-child {
+    border-bottom: none;
+}
+
+.artist-checkbox-item input[type="checkbox"], .member-checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.artist-checkbox-item label, .member-checkbox-item label {
+    flex: 1;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.song-count {
+    font-size: 0.8rem;
+    color: #666;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.artist-panel-controls, .member-panel-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.artist-panel-controls .control-btn, .member-panel-controls .control-btn {
+    font-size: 0.8rem;
+    padding: 8px 15px;
+}
+
+/* Scrollbar styling */
+.artist-checkboxes::-webkit-scrollbar, .member-checkboxes::-webkit-scrollbar {
+    width: 6px;
+}
+
+.artist-checkboxes::-webkit-scrollbar-track, .member-checkboxes::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 3px;
+}
+
+.artist-checkboxes::-webkit-scrollbar-thumb, .member-checkboxes::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.artist-checkboxes::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+/* Utility Classes */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: white;
+    font-size: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: white;
+    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+/* Footer */
+.footer {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    text-align: center;
+    padding: 30px 0;
+    margin-top: 50px;
+}
+
+.copyright {
+    margin-bottom: 15px;
+}
+
+.stats {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .title {
+        font-size: 2rem;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+    }
+    
+    .filter-select {
+        min-width: auto;
+    }
+    
+    .songs-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .similar-songs {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.song-card {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.similar-song {
+    animation: fadeIn 0.6s ease-out;
+}
