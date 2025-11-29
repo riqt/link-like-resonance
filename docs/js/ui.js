@@ -6,6 +6,10 @@ class UIManager {
         this.currentView = 'songs'; // 'songs' | 'similar'
         this.currentSelectedSong = null;
         this.artistColors = this.initializeArtistColors();
+        this.similarSongsDisplayed = 12; // デフォルト表示数
+        this.allSimilarSongs = []; // 全類似楽曲データ
+        this.currentSortOrder = 'desc'; // 現在のソート順
+        this.currentDisplayCount = '12'; // 現在の表示数
     }
 
     /**
@@ -21,26 +25,102 @@ class UIManager {
      */
     setupEventListeners() {
         const backBtn = document.getElementById('backBtn');
+        const showMoreBtn = document.getElementById('showMoreBtn');
+        const sortOrder = document.getElementById('sortOrder');
+        const displayCount = document.getElementById('displayCount');
         
         backBtn.addEventListener('click', () => {
-            this.showSongsView();
+            this.handleBackNavigation();
         });
+
+        showMoreBtn.addEventListener('click', () => {
+            this.showMoreSimilarSongs();
+        });
+
+        sortOrder.addEventListener('change', (e) => {
+            this.currentSortOrder = e.target.value;
+            this.updateSimilarDisplay();
+        });
+
+        displayCount.addEventListener('change', (e) => {
+            this.currentDisplayCount = e.target.value;
+            this.updateSimilarDisplay();
+        });
+
+        // モバイル対応: パネルの外側クリックで閉じる
+        this.setupMobileInteractions();
+    }
+
+    /**
+     * モバイル向けのインタラクション設定
+     */
+    setupMobileInteractions() {
+        // アーティスト・メンバーパネルの外側クリックで閉じる（モバイル用）
+        document.addEventListener('click', (e) => {
+            const artistPanel = document.getElementById('artistSelectionPanel');
+            const memberPanel = document.getElementById('memberSelectionPanel');
+            const artistBtn = document.getElementById('artistSelectionBtn');
+            const memberBtn = document.getElementById('memberSelectionBtn');
+            
+            // アーティストパネルの外側クリック
+            if (artistPanel && artistPanel.style.display === 'block') {
+                if (!artistPanel.contains(e.target) && e.target !== artistBtn) {
+                    artistPanel.style.display = 'none';
+                }
+            }
+            
+            // メンバーパネルの外側クリック
+            if (memberPanel && memberPanel.style.display === 'block') {
+                if (!memberPanel.contains(e.target) && e.target !== memberBtn) {
+                    memberPanel.style.display = 'none';
+                }
+            }
+        });
+
+        // タッチスクロール改善（iOS Safari対策）
+        document.body.addEventListener('touchstart', () => {}, { passive: true });
+        document.body.addEventListener('touchmove', () => {}, { passive: true });
+    }
+
+    /**
+     * 戻るナビゲーション処理
+     */
+    handleBackNavigation() {
+        // 可視化から類似楽曲に来た場合は可視化に戻る
+        if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
+            const selectedSongs = JSON.parse(sessionStorage.getItem('selectedSongsForVisualization') || '[]');
+            if (selectedSongs.length > 0) {
+                sessionStorage.removeItem('visualizationToSimilar');
+                sessionStorage.removeItem('selectedSongsForVisualization');
+                this.showVisualizationView(selectedSongs);
+                return;
+            }
+        }
+        
+        // 通常の楽曲一覧に戻る
+        this.showSongsView();
     }
 
     /**
      * 楽曲一覧ビューを表示
      */
     showSongsView() {
+        const searchSection = document.querySelector('.search-section');
         const songsSection = document.querySelector('.songs-section');
         const similarSection = document.getElementById('similarSection');
         const visualizationSection = document.getElementById('visualizationSection');
 
+        searchSection.style.display = 'block';
         songsSection.style.display = 'block';
         similarSection.style.display = 'none';
         visualizationSection.style.display = 'none';
         
         this.currentView = 'songs';
         this.currentSelectedSong = null;
+        
+        // sessionStorageをクリア
+        sessionStorage.removeItem('visualizationToSimilar');
+        sessionStorage.removeItem('selectedSongsForVisualization');
 
         // 可視化のクリーンアップ
         if (window.visualizationManager) {
@@ -57,10 +137,12 @@ class UIManager {
      * 類似楽曲ビューを表示
      */
     showSimilarView(song) {
+        const searchSection = document.querySelector('.search-section');
         const songsSection = document.querySelector('.songs-section');
         const similarSection = document.getElementById('similarSection');
         const visualizationSection = document.getElementById('visualizationSection');
 
+        searchSection.style.display = 'none';
         songsSection.style.display = 'none';
         similarSection.style.display = 'block';
         visualizationSection.style.display = 'none';
@@ -70,16 +152,19 @@ class UIManager {
 
         this.displaySelectedSong(song);
         this.displaySimilarSongs(song.id);
+        this.updateBackButton();
     }
 
     /**
      * 可視化ビューを表示
      */
     async showVisualizationView(selectedSongs) {
+        const searchSection = document.querySelector('.search-section');
         const songsSection = document.querySelector('.songs-section');
         const similarSection = document.getElementById('similarSection');
         const visualizationSection = document.getElementById('visualizationSection');
 
+        searchSection.style.display = 'none';
         songsSection.style.display = 'none';
         similarSection.style.display = 'none';
         visualizationSection.style.display = 'block';
@@ -126,11 +211,10 @@ class UIManager {
         card.className = 'song-card';
         card.dataset.songId = song.id;
 
-        // アーティスト情報の整理
-        const artistInfo = [song.artist_group, song.artists]
-            .filter(Boolean)
-            .filter(a => a.trim())
-            .join(' ');
+        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
+        const artistInfo = song.artist_group && song.artist_group.trim() 
+            ? song.artist_group.trim() 
+            : 'ソロ・その他';
 
         // アーティスト別の色を取得
         const artistColor = this.getArtistColor(song.artist_group || song.artists);
@@ -177,11 +261,10 @@ class UIManager {
     displaySelectedSong(song) {
         const selectedSongEl = document.getElementById('selectedSong');
         
-        // アーティスト情報の整理
-        const artistInfo = [song.artist_group, song.artists]
-            .filter(Boolean)
-            .filter(a => a.trim())
-            .join(' ');
+        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
+        const artistInfo = song.artist_group && song.artist_group.trim() 
+            ? song.artist_group.trim() 
+            : 'ソロ・その他';
 
         selectedSongEl.innerHTML = `
             <div class="song-title">${this.escapeHtml(song.title)}</div>
@@ -196,23 +279,26 @@ class UIManager {
      */
     displaySimilarSongs(songId) {
         const similarSongsEl = document.getElementById('similarSongs');
-        const similarSongs = window.dataLoader.getSimilarSongs(songId);
+        const showMoreBtn = document.getElementById('showMoreBtn');
+        this.allSimilarSongs = window.dataLoader.getSimilarSongs(songId);
 
-        if (!similarSongs || similarSongs.length === 0) {
+        if (!this.allSimilarSongs || this.allSimilarSongs.length === 0) {
             similarSongsEl.innerHTML = `
                 <div class="no-results">
                     この楽曲の類似楽曲が見つかりませんでした
                 </div>
             `;
+            showMoreBtn.style.display = 'none';
             return;
         }
 
-        similarSongsEl.innerHTML = '';
-
-        similarSongs.forEach(simData => {
-            const similarCard = this.createSimilarSongCard(simData);
-            similarSongsEl.appendChild(similarCard);
-        });
+        // デフォルト設定をリセット  
+        this.currentSortOrder = 'desc';
+        this.currentDisplayCount = '12';
+        document.getElementById('sortOrder').value = 'desc';
+        document.getElementById('displayCount').value = '12';
+        
+        this.updateSimilarDisplay();
     }
 
     /**
@@ -225,11 +311,10 @@ class UIManager {
         card.className = 'similar-song';
         card.dataset.songId = song.id;
 
-        // アーティスト情報の整理
-        const artistInfo = [song.artist_group, song.artists]
-            .filter(Boolean)
-            .filter(a => a.trim())
-            .join(' ');
+        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
+        const artistInfo = song.artist_group && song.artist_group.trim() 
+            ? song.artist_group.trim() 
+            : 'ソロ・その他';
 
         // アーティスト別の色を取得
         const artistColor = this.getArtistColor(song.artist_group || song.artists);
@@ -258,6 +343,100 @@ class UIManager {
         });
 
         return card;
+    }
+
+    /**
+     * 類似楽曲の描画
+     */
+    renderSimilarSongs() {
+        const similarSongsEl = document.getElementById('similarSongs');
+        similarSongsEl.innerHTML = '';
+
+        const songsToShow = this.allSimilarSongs.slice(0, this.similarSongsDisplayed);
+        
+        songsToShow.forEach(simData => {
+            const similarCard = this.createSimilarSongCard(simData);
+            similarSongsEl.appendChild(similarCard);
+        });
+    }
+
+    /**
+     * さらに表示ボタンの更新
+     */
+    updateShowMoreButton() {
+        const showMoreBtn = document.getElementById('showMoreBtn');
+        
+        if (this.similarSongsDisplayed < this.allSimilarSongs.length) {
+            const remaining = this.allSimilarSongs.length - this.similarSongsDisplayed;
+            showMoreBtn.textContent = `さらに表示 (+${remaining}曲)`;
+            showMoreBtn.style.display = 'block';
+        } else {
+            showMoreBtn.style.display = 'none';
+        }
+    }
+
+    /**
+     * 類似楽曲表示の更新
+     */
+    updateSimilarDisplay() {
+        if (!this.allSimilarSongs || this.allSimilarSongs.length === 0) {
+            return;
+        }
+
+        // ソート処理
+        let sortedSongs = [...this.allSimilarSongs];
+        if (this.currentSortOrder === 'asc') {
+            sortedSongs.sort((a, b) => a.similarity - b.similarity);
+        } else {
+            sortedSongs.sort((a, b) => b.similarity - a.similarity);
+        }
+
+        // ランク再計算
+        sortedSongs.forEach((song, index) => {
+            song.rank = index + 1;
+        });
+
+        this.allSimilarSongs = sortedSongs;
+
+        // 表示数決定
+        if (this.currentDisplayCount === 'all') {
+            this.similarSongsDisplayed = this.allSimilarSongs.length;
+        } else {
+            this.similarSongsDisplayed = Math.min(
+                parseInt(this.currentDisplayCount),
+                this.allSimilarSongs.length
+            );
+        }
+
+        this.renderSimilarSongs();
+        this.updateShowMoreButton();
+    }
+
+    /**
+     * 戻るボタンの更新
+     */
+    updateBackButton() {
+        const backBtn = document.getElementById('backBtn');
+        if (backBtn) {
+            if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
+                backBtn.textContent = '🌌 可視化に戻る';
+            } else {
+                backBtn.textContent = '楽曲一覧に戻る';
+            }
+        }
+    }
+
+    /**
+     * さらに表示の処理
+     */
+    showMoreSimilarSongs() {
+        const increment = 6;
+        this.similarSongsDisplayed = Math.min(
+            this.similarSongsDisplayed + increment, 
+            this.allSimilarSongs.length
+        );
+        this.renderSimilarSongs();
+        this.updateShowMoreButton();
     }
 
     /**

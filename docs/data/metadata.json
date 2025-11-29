@@ -2,7 +2,7 @@
   "export_info": {
     "version": "1.0",
     "description": "ベクトル検索システム - Web版",
-    "copyright_notice": "歌詞データは著作権保護のため除外されています"
+    "copyright_notice": ""
   },
   "system_info": {
     "faiss_available": true,

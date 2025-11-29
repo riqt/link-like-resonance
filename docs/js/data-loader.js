@@ -125,14 +125,13 @@ class DataLoader {
         const artists = new Set();
         
         this.songs.forEach(song => {
-            // artist_groupを追加
+            // artist_groupが存在する場合はそれを使用
             if (song.artist_group && song.artist_group.trim()) {
                 artists.add(song.artist_group.trim());
             }
-            
-            // artistsを追加
-            if (song.artists && song.artists.trim()) {
-                artists.add(song.artists.trim());
+            // artist_groupが存在しない場合は「ソロ・その他」に集約
+            else {
+                artists.add('ソロ・その他');
             }
         });
         
@@ -195,10 +194,11 @@ class DataLoader {
             // ジャンルフィルタ
             const genreMatch = !genreFilter || song.genre === genreFilter;
             
-            // アーティストフィルタ（artist_group または artists で一致）
-            const artistMatch = !artistFilter || 
-                song.artist_group === artistFilter || 
-                song.artists === artistFilter;
+            // アーティストフィルタ（artist_groupのみで一致、存在しない場合は「ソロ・その他」として扱う）
+            const songArtistGroup = song.artist_group && song.artist_group.trim() 
+                ? song.artist_group.trim() 
+                : 'ソロ・その他';
+            const artistMatch = !artistFilter || songArtistGroup === artistFilter;
             
             // メンバーフィルタ（members配列に含まれるかチェック）
             const memberMatch = !memberFilter || 

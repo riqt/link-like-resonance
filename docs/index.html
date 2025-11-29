@@ -88,23 +88,36 @@
                 <div class="selected-song" id="selectedSong">
                     <!-- 選択された楽曲の情報がここに表示される -->
                 </div>
+                <div class="similar-controls-top">
+                    <div class="control-group">
+                        <label for="sortOrder">並び順:</label>
+                        <select id="sortOrder" class="filter-select">
+                            <option value="desc">類似度: 高い順</option>
+                            <option value="asc">類似度: 低い順</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="displayCount">表示数:</label>
+                        <select id="displayCount" class="filter-select">
+                            <option value="12">12曲</option>
+                            <option value="24">24曲</option>
+                            <option value="all">すべて</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="similar-songs" id="similarSongs">
                     <!-- 類似楽曲がここに表示される -->
                 </div>
-                <button id="backBtn" class="back-btn">楽曲一覧に戻る</button>
+                <div class="similar-controls">
+                    <button id="showMoreBtn" class="control-btn" style="display: none;">さらに表示</button>
+                    <button id="backBtn" class="back-btn">楽曲一覧に戻る</button>
+                </div>
             </section>
 
             <!-- 可視化セクション -->
             <section class="visualization-section" id="visualizationSection" style="display: none;">
-                <h2 class="section-title">Embedding可視化</h2>
+                <h2 class="section-title">🌌Lyric Constellation Map</h2>
                 <div class="visualization-controls">
-                    <div class="control-group">
-                        <label for="methodSelect">次元削減手法:</label>
-                        <select id="methodSelect" class="filter-select">
-                            <option value="pca">PCA</option>
-                            <option value="tsne">t-SNE</option>
-                        </select>
-                    </div>
                     <div class="control-group">
                         <label>
                             <input type="checkbox" id="showLabelsCheck" checked>
@@ -132,10 +145,6 @@
 
     <footer class="footer">
         <div class="container">
-            <p class="copyright">
-                © 2024 楽曲ベクトル検索システム<br>
-                <small>歌詞データは著作権保護のため表示されません</small>
-            </p>
             <div class="stats" id="stats">
                 <!-- 統計情報がここに表示される -->
             </div>
@@ -143,6 +152,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="js/data-loader.js"></script>
     <script src="js/search.js"></script>
