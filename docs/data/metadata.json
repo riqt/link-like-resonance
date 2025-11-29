@@ -1,0 +1,30 @@
+{
+  "export_info": {
+    "version": "1.0",
+    "description": "ベクトル検索システム - Web版",
+    "copyright_notice": "歌詞データは著作権保護のため除外されています"
+  },
+  "system_info": {
+    "faiss_available": true,
+    "songs_count": 114,
+    "embeddings_shape": [
+      114,
+      3072
+    ],
+    "metadata_count": 114,
+    "index_available": true,
+    "files": {
+      "songs": true,
+      "embeddings": true,
+      "metadata": true,
+      "index": true
+    }
+  },
+  "statistics": {
+    "total_songs": 114,
+    "data_files": {
+      "songs": true,
+      "similarities": true
+    }
+  }
+}
