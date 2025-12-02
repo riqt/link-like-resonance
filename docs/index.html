@@ -9,7 +9,7 @@
 <body>
     <header class="header">
         <div class="container">
-            <h1 class="title">🌐Link-Like Resonance</h1>
+            <h1 class="title">🌐 Link-Like Resonance</h1>
         </div>
     </header>
 
@@ -28,6 +28,13 @@
                     <select id="memberFilter" class="filter-select">
                         <option value="">All Members</option>
                     </select>
+                    <div class="sort-controls">
+                        <label>Release:</label>
+                        <div class="sort-buttons">
+                            <button id="sortInitialBtn" class="sort-btn active">Initial</button>
+                            <button id="sortLatestBtn" class="sort-btn">Latest</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -108,14 +115,14 @@
                             <option value="">All Members</option>
                         </select>
                     </div>
-                    <button id="backBtnTop" class="back-btn">Return to Archive</button>
+                    <button id="backBtnTop" class="back-btn">📚 Return to Archive</button>
                 </div>
                 <div class="similar-songs" id="similarSongs">
                     <!-- Resonance Linksがここに表示される -->
                 </div>
                 <div class="similar-controls">
                     <button id="showMoreBtn" class="control-btn" style="display: none;">Show More</button>
-                    <button id="backBtn" class="back-btn">Return to Archive</button>
+                    <button id="backBtn" class="back-btn">📚 Return to Archive</button>
                 </div>
             </section>
 
@@ -136,7 +143,7 @@
                         </label>
                     </div>
                     <button id="resetZoomBtn" class="control-btn">Reset Zoom</button>
-                    <button id="backToSongsBtn" class="back-btn">Return to Archive</button>
+                    <button id="backToSongsBtn" class="back-btn">📚 Return to Archive</button>
                 </div>
                 <div class="visualization-container">
                     <canvas id="visualizationCanvas"></canvas>

@@ -334,6 +334,7 @@ class UIManager {
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
                 ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${song.release ? `<br><span><strong>Release:</strong> ${this.escapeHtml(song.release)}</span>` : ''}
             </div>
         `;
     }
@@ -529,8 +530,8 @@ class UIManager {
             if (backBtn) backBtn.textContent = '🌌 Return to Map';
             if (backBtnTop) backBtnTop.textContent = '🌌 Return to Map';
         } else {
-            if (backBtn) backBtn.textContent = 'Return to Archive';
-            if (backBtnTop) backBtnTop.textContent = 'Return to Archive';
+            if (backBtn) backBtn.textContent = '📚 Return to Archive';
+            if (backBtnTop) backBtnTop.textContent = '📚 Return to Archive';
         }
     }
 

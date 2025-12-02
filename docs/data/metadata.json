@@ -6,12 +6,12 @@
   },
   "system_info": {
     "faiss_available": true,
-    "songs_count": 118,
+    "songs_count": 120,
     "embeddings_shape": [
-      118,
+      120,
       3072
     ],
-    "metadata_count": 118,
+    "metadata_count": 120,
     "index_available": true,
     "files": {
       "songs": true,
@@ -21,7 +21,7 @@
     }
   },
   "statistics": {
-    "total_songs": 118,
+    "total_songs": 120,
     "data_files": {
       "songs": true,
       "similarities": true
