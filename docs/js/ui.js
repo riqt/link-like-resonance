@@ -265,14 +265,27 @@ class UIManager {
             artistInfo = 'ソロ・その他';
         }
 
-        // アーティスト別の色を取得（元のアーティスト名で色を決定）
-        const artistColor = this.getArtistColor(originalArtist || 'ソロ・その他');
+        // アーティスト別の色を取得
+        let artistColor;
+        if (originalArtist) {
+            // ユニット楽曲の場合は元のアーティスト名で色を決定
+            artistColor = this.getArtistColor(originalArtist);
+        } else if (song.members && song.members.length === 1) {
+            // ソロ楽曲で1人の場合はそのメンバーの色を使用
+            artistColor = this.getArtistColor(song.members[0]);
+        } else {
+            // その他の場合はデフォルト色
+            artistColor = this.getArtistColor('ソロ・その他');
+        }
 
+        // Unit/Artist ラベルを決定
+        const labelText = originalArtist ? 'Unit:' : 'Artist:';
+        
         card.innerHTML = `
             <div class="artist-color-bar" style="background-color: ${artistColor}"></div>
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>${labelText}</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
             </div>
         `;
 
@@ -334,7 +347,6 @@ class UIManager {
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
                 ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
-                ${song.release ? `<br><span><strong>Release:</strong> ${this.escapeHtml(song.release)}</span>` : ''}
             </div>
         `;
     }
@@ -396,8 +408,21 @@ class UIManager {
             artistInfo = 'ソロ・その他';
         }
 
-        // アーティスト別の色を取得（元のアーティスト名で色を決定）
-        const artistColor = this.getArtistColor(originalArtist || 'ソロ・その他');
+        // アーティスト別の色を取得
+        let artistColor;
+        if (originalArtist) {
+            // ユニット楽曲の場合は元のアーティスト名で色を決定
+            artistColor = this.getArtistColor(originalArtist);
+        } else if (song.members && song.members.length === 1) {
+            // ソロ楽曲で1人の場合はそのメンバーの色を使用
+            artistColor = this.getArtistColor(song.members[0]);
+        } else {
+            // その他の場合はデフォルト色
+            artistColor = this.getArtistColor('ソロ・その他');
+        }
+
+        // Unit/Artist ラベルを決定
+        const labelText = originalArtist ? 'Unit:' : 'Artist:';
 
         // 類似度をパーセンテージに変換
         const similarityPercent = (similarity * 100).toFixed(1);
@@ -410,7 +435,7 @@ class UIManager {
             </div>
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>${labelText}</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
             </div>
         `;
 
