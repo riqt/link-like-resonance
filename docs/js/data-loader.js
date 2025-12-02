@@ -122,20 +122,21 @@ class DataLoader {
     getArtists() {
         if (!this.songs) return [];
         
-        const artists = new Set();
+        const artistCounts = {};
         
         this.songs.forEach(song => {
-            // artist_groupが存在する場合はそれを使用
-            if (song.artist_group && song.artist_group.trim()) {
-                artists.add(song.artist_group.trim());
+            // アーティストグループのマッピングを適用
+            const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+            
+            if (!artistCounts[mappedArtist]) {
+                artistCounts[mappedArtist] = [];
             }
-            // artist_groupが存在しない場合は「ソロ・その他」に集約
-            else {
-                artists.add('ソロ・その他');
-            }
+            artistCounts[mappedArtist].push(song);
         });
         
-        return Array.from(artists).sort();
+        // 設定ファイルの順序でアーティストをソート
+        const sortedArtists = window.AppConfig.sortByOrder(artistCounts, window.AppConfig.artistOrder);
+        return sortedArtists.map(([artist, songs]) => artist);
     }
 
     /**
@@ -144,17 +145,22 @@ class DataLoader {
     getMembers() {
         if (!this.songs) return [];
         
-        const members = new Set();
+        const memberCounts = {};
         
         this.songs.forEach(song => {
             if (song.members && Array.isArray(song.members)) {
                 song.members.forEach(member => {
-                    members.add(member);
+                    if (!memberCounts[member]) {
+                        memberCounts[member] = [];
+                    }
+                    memberCounts[member].push(song);
                 });
             }
         });
         
-        return Array.from(members).sort();
+        // 設定ファイルの順序でメンバーをソート
+        const sortedMembers = window.AppConfig.sortByOrder(memberCounts, window.AppConfig.memberOrder);
+        return sortedMembers.map(([member, songs]) => member);
     }
 
     /**
@@ -194,11 +200,9 @@ class DataLoader {
             // ジャンルフィルタ
             const genreMatch = !genreFilter || song.genre === genreFilter;
             
-            // アーティストフィルタ（artist_groupのみで一致、存在しない場合は「ソロ・その他」として扱う）
-            const songArtistGroup = song.artist_group && song.artist_group.trim() 
-                ? song.artist_group.trim() 
-                : 'ソロ・その他';
-            const artistMatch = !artistFilter || songArtistGroup === artistFilter;
+            // アーティストフィルタ（マッピングを適用）
+            const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+            const artistMatch = !artistFilter || mappedArtist === artistFilter;
             
             // メンバーフィルタ（members配列に含まれるかチェック）
             const memberMatch = !memberFilter || 

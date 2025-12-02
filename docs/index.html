@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Link-Like Resonance</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header class="header">
         <div class="container">
-            <h1 class="title">🎵 Link-Like Resonance</h1>
+            <h1 class="title">🌐Link-Like Resonance</h1>
         </div>
     </header>
 
@@ -18,15 +18,15 @@
             <!-- 検索セクション -->
             <section class="search-section">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="楽曲名で検索..." class="search-input">
+                    <input type="text" id="searchInput" placeholder="Search by Song Title..." class="search-input">
                     <button id="clearBtn" class="clear-btn" style="display: none;">✕</button>
                 </div>
                 <div class="filter-controls">
                     <select id="artistFilter" class="filter-select">
-                        <option value="">すべてのアーティスト</option>
+                        <option value="">All Units</option>
                     </select>
                     <select id="memberFilter" class="filter-select">
-                        <option value="">すべてのメンバー</option>
+                        <option value="">All Members</option>
                     </select>
                 </div>
             </section>
@@ -34,83 +34,88 @@
             <!-- 楽曲一覧セクション -->
             <section class="songs-section">
                 <div class="section-header">
-                    <h2 class="section-title">楽曲一覧</h2>
+                    <h2 class="section-title">📚 Song Archive</h2>
                     <div class="selection-controls">
                         <div class="basic-controls">
-                            <button id="selectAllBtn" class="control-btn">全選択</button>
-                            <button id="clearSelectionBtn" class="control-btn">選択解除</button>
+                            <button id="selectAllBtn" class="control-btn">Select All</button>
+                            <button id="clearSelectionBtn" class="control-btn">Clear Selection</button>
                         </div>
                         <div class="artist-controls">
-                            <button id="artistSelectionBtn" class="control-btn">アーティスト別選択</button>
-                            <button id="memberSelectionBtn" class="control-btn">メンバー別選択</button>
+                            <button id="artistSelectionBtn" class="control-btn">Select by Units</button>
+                            <button id="memberSelectionBtn" class="control-btn">Select by Members</button>
                             <div id="artistSelectionPanel" class="artist-panel" style="display: none;">
                                 <div class="artist-panel-header">
-                                    <h4>アーティスト別選択</h4>
+                                    <h4>Select by Units</h4>
                                     <button id="closeArtistPanelBtn" class="close-btn">×</button>
                                 </div>
                                 <div class="artist-checkboxes" id="artistCheckboxes">
                                     <!-- アーティストチェックボックスが挿入される -->
                                 </div>
                                 <div class="artist-panel-controls">
-                                    <button id="selectAllArtistsBtn" class="control-btn">全アーティスト選択</button>
-                                    <button id="clearAllArtistsBtn" class="control-btn">全解除</button>
+                                    <button id="clearAllArtistsBtn" class="control-btn">Clear Selection</button>
                                 </div>
                             </div>
                             <div id="memberSelectionPanel" class="member-panel" style="display: none;">
                                 <div class="member-panel-header">
-                                    <h4>メンバー別選択</h4>
+                                    <h4>Select by Members</h4>
                                     <button id="closeMemberPanelBtn" class="close-btn">×</button>
                                 </div>
                                 <div class="member-checkboxes" id="memberCheckboxes">
                                     <!-- メンバーチェックボックスが挿入される -->
                                 </div>
                                 <div class="member-panel-controls">
-                                    <button id="selectAllMembersBtn" class="control-btn">全メンバー選択</button>
-                                    <button id="clearAllMembersBtn" class="control-btn">全解除</button>
+                                    <button id="clearAllMembersBtn" class="control-btn">Clear Selection</button>
                                 </div>
                             </div>
                         </div>
-                        <button id="visualizeBtn" class="visualize-btn" disabled>選択楽曲を可視化 (<span id="selectedCount">0</span>曲)</button>
+                        <button id="visualizeBtn" class="visualize-btn" disabled>
+                            <span class="btn-text">Generate Map</span>
+                            <span class="btn-count">(<span id="selectedCount">No</span> songs)</span>
+                        </button>
                     </div>
                 </div>
                 <div class="songs-grid" id="songsGrid">
                     <!-- 楽曲カードがここに挿入される -->
                 </div>
-                <div class="loading" id="loading">読み込み中...</div>
+                <div class="loading" id="loading">Loading...</div>
                 <div class="no-results" id="noResults" style="display: none;">
-                    検索条件に一致する楽曲が見つかりませんでした
+                    No results found
                 </div>
             </section>
 
-            <!-- 類似楽曲セクション -->
+            <!-- Resonance Linksセクション -->
             <section class="similar-section" id="similarSection" style="display: none;">
-                <h2 class="section-title">類似楽曲</h2>
+                <h2 class="section-title">💫 Resonance Links</h2>
                 <div class="selected-song" id="selectedSong">
                     <!-- 選択された楽曲の情報がここに表示される -->
                 </div>
                 <div class="similar-controls-top">
                     <div class="control-group">
-                        <label for="sortOrder">並び順:</label>
-                        <select id="sortOrder" class="filter-select">
-                            <option value="desc">類似度: 高い順</option>
-                            <option value="asc">類似度: 低い順</option>
+                        <label>Sort:</label>
+                        <div class="sort-buttons">
+                            <button id="sortTopBtn" class="sort-btn active">Top</button>
+                            <button id="sortBottomBtn" class="sort-btn">Bottom</button>
+                        </div>
+                    </div>
+                    <div class="filter-controls">
+                        <button id="selectedSongsFilterBtn" class="control-btn selected-songs-filter-btn" style="display: none;">
+                            <span id="selectedSongsFilterText">🎯 Clear Filter</span>
+                        </button>
+                        <select id="similarArtistFilter" class="filter-select">
+                            <option value="">All Units</option>
+                        </select>
+                        <select id="similarMemberFilter" class="filter-select">
+                            <option value="">All Members</option>
                         </select>
                     </div>
-                    <div class="control-group">
-                        <label for="displayCount">表示数:</label>
-                        <select id="displayCount" class="filter-select">
-                            <option value="12">12曲</option>
-                            <option value="24">24曲</option>
-                            <option value="all">すべて</option>
-                        </select>
-                    </div>
+                    <button id="backBtnTop" class="back-btn">Return to Archive</button>
                 </div>
                 <div class="similar-songs" id="similarSongs">
-                    <!-- 類似楽曲がここに表示される -->
+                    <!-- Resonance Linksがここに表示される -->
                 </div>
                 <div class="similar-controls">
-                    <button id="showMoreBtn" class="control-btn" style="display: none;">さらに表示</button>
-                    <button id="backBtn" class="back-btn">楽曲一覧に戻る</button>
+                    <button id="showMoreBtn" class="control-btn" style="display: none;">Show More</button>
+                    <button id="backBtn" class="back-btn">Return to Archive</button>
                 </div>
             </section>
 
@@ -121,22 +126,39 @@
                     <div class="control-group">
                         <label>
                             <input type="checkbox" id="showLabelsCheck" checked>
-                            楽曲名を表示
+                            Show Song Titles
                         </label>
                     </div>
                     <div class="control-group">
                         <label>
-                            <input type="checkbox" id="colorByGenreCheck" checked>
-                            ジャンル別に色分け
+                            <input type="checkbox" id="showLegendCheck">
+                            Show Legend
                         </label>
                     </div>
-                    <button id="updateVisualizationBtn" class="control-btn">可視化更新</button>
-                    <button id="backToSongsBtn" class="back-btn">楽曲一覧に戻る</button>
+                    <button id="resetZoomBtn" class="control-btn">Reset Zoom</button>
+                    <button id="backToSongsBtn" class="back-btn">Return to Archive</button>
                 </div>
                 <div class="visualization-container">
                     <canvas id="visualizationCanvas"></canvas>
+                    <div class="zoom-controls">
+                        <div class="pan-controls">
+                            <button id="panUpBtn" class="pan-btn">↑</button>
+                            <div class="pan-horizontal">
+                                <button id="panLeftBtn" class="pan-btn">←</button>
+                                <button id="panRightBtn" class="pan-btn">→</button>
+                            </div>
+                            <button id="panDownBtn" class="pan-btn">↓</button>
+                        </div>
+                        <div class="zoom-group">
+                            <button id="zoomInBtn" class="zoom-btn">+</button>
+                            <button id="zoomOutBtn" class="zoom-btn">-</button>
+                        </div>
+                    </div>
                     <div class="visualization-info" id="visualizationInfo">
                         <!-- 可視化の情報が表示される -->
+                    </div>
+                    <div class="visualization-hint">
+                        💡 <strong>Hint:</strong> Click a plot to view "Resonance Links"💫
                     </div>
                 </div>
             </section>
@@ -153,7 +175,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="js/config.js"></script>
     <script src="js/data-loader.js"></script>
     <script src="js/search.js"></script>
     <script src="js/ui.js"></script>

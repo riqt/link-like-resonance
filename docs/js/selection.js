@@ -37,7 +37,6 @@ class SelectionManager {
         // アーティスト選択パネル関連
         const artistSelectionBtn = document.getElementById('artistSelectionBtn');
         const closeArtistPanelBtn = document.getElementById('closeArtistPanelBtn');
-        const selectAllArtistsBtn = document.getElementById('selectAllArtistsBtn');
         const clearAllArtistsBtn = document.getElementById('clearAllArtistsBtn');
 
         artistSelectionBtn.addEventListener('click', () => {
@@ -48,10 +47,6 @@ class SelectionManager {
             this.hideArtistPanel();
         });
 
-        selectAllArtistsBtn.addEventListener('click', () => {
-            this.selectAllArtists();
-        });
-
         clearAllArtistsBtn.addEventListener('click', () => {
             this.clearAllArtists();
         });
@@ -59,7 +54,6 @@ class SelectionManager {
         // メンバー選択パネル関連
         const memberSelectionBtn = document.getElementById('memberSelectionBtn');
         const closeMemberPanelBtn = document.getElementById('closeMemberPanelBtn');
-        const selectAllMembersBtn = document.getElementById('selectAllMembersBtn');
         const clearAllMembersBtn = document.getElementById('clearAllMembersBtn');
 
         memberSelectionBtn.addEventListener('click', () => {
@@ -68,10 +62,6 @@ class SelectionManager {
 
         closeMemberPanelBtn.addEventListener('click', () => {
             this.hideMemberPanel();
-        });
-
-        selectAllMembersBtn.addEventListener('click', () => {
-            this.selectAllMembers();
         });
 
         clearAllMembersBtn.addEventListener('click', () => {
@@ -141,19 +131,33 @@ class SelectionManager {
     }
 
     /**
-     * 全選択
+     * 全選択/全解除の切り替え
      */
     selectAll() {
         const checkboxes = document.querySelectorAll('.song-card-checkbox');
+        const totalSongs = checkboxes.length;
+        const selectedSongs = this.selectedSongs.size;
+        
+        // 全選択されている場合は全解除、そうでなければ全選択
+        const shouldSelectAll = selectedSongs < totalSongs;
+        
         checkboxes.forEach(checkbox => {
             const songId = parseInt(checkbox.dataset.songId);
-            checkbox.checked = true;
-            this.selectedSongs.add(songId);
-            this.updateSelectionUI(songId, true);
+            checkbox.checked = shouldSelectAll;
+            
+            if (shouldSelectAll) {
+                this.selectedSongs.add(songId);
+                this.updateSelectionUI(songId, true);
+            } else {
+                this.selectedSongs.delete(songId);
+                this.updateSelectionUI(songId, false);
+            }
         });
 
         this.updateSelectionCount();
         this.updateVisualizeButton();
+        
+        console.log(`🔄 ${shouldSelectAll ? 'Select All' : 'Clear Selection'}を実行 (${totalSongs}曲)`);
     }
 
     /**
@@ -191,8 +195,19 @@ class SelectionManager {
      */
     updateSelectionCount() {
         const selectedCount = document.getElementById('selectedCount');
-        if (selectedCount) {
-            selectedCount.textContent = this.selectedSongs.size;
+        const btnCount = document.querySelector('.btn-count');
+        if (selectedCount && btnCount) {
+            const count = this.selectedSongs.size;
+            if (count === 0) {
+                selectedCount.textContent = 'No';
+                btnCount.innerHTML = '(<span id="selectedCount">No</span> songs)';
+            } else if (count === 1) {
+                selectedCount.textContent = '1';
+                btnCount.innerHTML = '(<span id="selectedCount">1</span> song)';
+            } else {
+                selectedCount.textContent = count;
+                btnCount.innerHTML = `(<span id="selectedCount">${count}</span> songs)`;
+            }
         }
     }
 
@@ -202,7 +217,7 @@ class SelectionManager {
     updateVisualizeButton() {
         const visualizeBtn = document.getElementById('visualizeBtn');
         if (visualizeBtn) {
-            visualizeBtn.disabled = this.selectedSongs.size < 2;
+            visualizeBtn.disabled = this.selectedSongs.size < 3;
         }
     }
 
@@ -210,8 +225,8 @@ class SelectionManager {
      * 可視化開始
      */
     async startVisualization() {
-        if (this.selectedSongs.size < 2) {
-            alert('可視化には2つ以上の楽曲を選択してください');
+        if (this.selectedSongs.size < 3) {
+            alert('可視化には3つ以上の楽曲を選択してください');
             return;
         }
 
@@ -334,32 +349,21 @@ class SelectionManager {
         const artistCheckboxes = document.getElementById('artistCheckboxes');
         if (!artistCheckboxes) return;
 
-        // アーティスト別楽曲数を集計
+        // アーティスト別楽曲数を集計（フィルターと同じロジック）
         const artistSongCounts = {};
         const songs = window.dataLoader.getSongs();
 
         songs.forEach(song => {
-            // artist_groupがあればそれを使用、なければartistsを使用
-            const artist = song.artist_group?.trim() || song.artists?.trim() || 'Unknown';
-            if (!artistSongCounts[artist]) {
-                artistSongCounts[artist] = [];
+            // アーティストグループのマッピングを適用
+            const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+            if (!artistSongCounts[mappedArtist]) {
+                artistSongCounts[mappedArtist] = [];
             }
-            artistSongCounts[artist].push(song);
-            
-            // artist_groupとartistsが異なる場合、artistsも別途カウント
-            if (song.artist_group?.trim() && song.artists?.trim() && 
-                song.artist_group.trim() !== song.artists.trim()) {
-                const artistsName = song.artists.trim();
-                if (!artistSongCounts[artistsName]) {
-                    artistSongCounts[artistsName] = [];
-                }
-                artistSongCounts[artistsName].push(song);
-            }
+            artistSongCounts[mappedArtist].push(song);
         });
 
-        // アーティストリストを楽曲数でソート
-        const sortedArtists = Object.entries(artistSongCounts)
-            .sort((a, b) => b[1].length - a[1].length);
+        // 設定ファイルの順序でアーティストをソート
+        const sortedArtists = window.AppConfig.sortByOrder(artistSongCounts, window.AppConfig.artistOrder);
 
         artistCheckboxes.innerHTML = '';
 
@@ -381,7 +385,26 @@ class SelectionManager {
 
             // アーティスト選択のイベント
             checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
                 this.toggleArtistSongs(artist, e.target.checked);
+            });
+            
+            // チェックボックスのクリックイベントにも伝播防止を追加
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // 行全体をクリック可能にする（チェックボックスと完全に同じ挙動）
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // チェックボックス自体がクリックされた場合は何もしない
+                if (e.target === checkbox) return;
+                
+                // その他の場所がクリックされた場合はチェックボックスのclickを実行
+                // これにより、チェックボックス直接クリックと完全に同じ処理パスを通る
+                checkbox.click();
             });
 
             item.appendChild(checkbox);
@@ -429,8 +452,9 @@ class SelectionManager {
     toggleArtistSongs(artist, isSelected) {
         const songs = window.dataLoader.getSongs();
         const artistSongs = songs.filter(song => {
-            // artist_group または artists のいずれかが一致する楽曲を対象
-            return (song.artist_group?.trim() === artist) || (song.artists?.trim() === artist);
+            // マッピングを適用してフィルタリング
+            const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+            return mappedArtist === artist;
         });
 
         artistSongs.forEach(song => {
@@ -493,8 +517,9 @@ class SelectionManager {
         checkboxes.forEach(checkbox => {
             const artist = checkbox.dataset.artist;
             const artistSongs = songs.filter(song => {
-                // artist_group または artists のいずれかが一致する楽曲を対象
-                return (song.artist_group?.trim() === artist) || (song.artists?.trim() === artist);
+                // マッピングを適用してフィルタリング
+                const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+                return mappedArtist === artist;
             });
 
             // そのアーティストの楽曲がすべて選択されているかチェック
@@ -531,9 +556,8 @@ class SelectionManager {
             }
         });
 
-        // メンバーリストを楽曲数でソート
-        const sortedMembers = Object.entries(memberSongCounts)
-            .sort((a, b) => b[1].length - a[1].length);
+        // 設定ファイルの順序でメンバーをソート
+        const sortedMembers = window.AppConfig.sortByOrder(memberSongCounts, window.AppConfig.memberOrder);
 
         memberCheckboxes.innerHTML = '';
 
@@ -555,7 +579,26 @@ class SelectionManager {
 
             // メンバー選択のイベント
             checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
                 this.toggleMemberSongs(member, e.target.checked);
+            });
+            
+            // チェックボックスのクリックイベントにも伝播防止を追加
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // 行全体をクリック可能にする（チェックボックスと完全に同じ挙動）
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // チェックボックス自体がクリックされた場合は何もしない
+                if (e.target === checkbox) return;
+                
+                // その他の場所がクリックされた場合はチェックボックスのclickを実行
+                // これにより、チェックボックス直接クリックと完全に同じ処理パスを通る
+                checkbox.click();
             });
 
             item.appendChild(checkbox);
