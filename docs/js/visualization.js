@@ -759,7 +759,17 @@ class VisualizationManager {
 
         layoutData.forEach((item) => {
             // 散布図では元のアーティスト名を使用（マッピングしない）
-            const artist = item.song.artist_group?.trim() || 'ソロ・その他';
+            let artist;
+            const originalArtist = item.song.artist_group?.trim() || '';
+            if (originalArtist) {
+                artist = originalArtist;
+            } else if (item.song.members && item.song.members.length === 1) {
+                // ソロ楽曲で1人の場合はそのメンバー名を使用
+                artist = item.song.members[0];
+            } else {
+                artist = 'ソロ・その他';
+            }
+            
             if (!artistGroups[artist]) {
                 artistGroups[artist] = [];
             }
