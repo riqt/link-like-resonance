@@ -343,10 +343,14 @@ class UIManager {
             artistInfo = 'ソロ・その他';
         }
 
+        // Unit/Artist ラベルを決定
+        const labelText = originalArtist ? 'Unit:' : 'Artist:';
+
         selectedSongEl.innerHTML = `
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>${labelText}</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${song.release ? `<br><span><strong>Release:</strong> ${this.escapeHtml(song.release)}</span>` : ''}
             </div>
         `;
     }
