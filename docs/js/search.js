@@ -60,7 +60,7 @@ class SearchManager {
 
         // アーティストフィルタ
         const artists = window.dataLoader.getArtists();
-        artistFilter.innerHTML = '<option value="">すべてのアーティスト</option>';
+        artistFilter.innerHTML = '<option value="">All Units</option>';
         artists.forEach(artist => {
             const option = document.createElement('option');
             option.value = artist;
@@ -70,7 +70,7 @@ class SearchManager {
 
         // メンバーフィルタ
         const members = window.dataLoader.getMembers();
-        memberFilter.innerHTML = '<option value="">すべてのメンバー</option>';
+        memberFilter.innerHTML = '<option value="">All Members</option>';
         members.forEach(member => {
             const option = document.createElement('option');
             option.value = member;

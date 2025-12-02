@@ -11,6 +11,7 @@ body {
     color: #333;
     background: linear-gradient(135deg, #b94047 0%, #8b3139 100%);
     min-height: 100vh;
+    touch-action: manipulation; /* ダブルタップ拡大を無効化 */
 }
 
 .container {
@@ -338,11 +339,65 @@ body {
     transform: translateY(-1px);
 }
 
+/* 選択楽曲フィルタボタン */
+.selected-songs-filter-btn {
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+/* フィルタオン状態（アクティブ）- 加賀五彩の古代紫 */
+.selected-songs-filter-btn.active {
+    background: linear-gradient(45deg, #895B8A, #6d4570);
+    color: white;
+    border-color: #6d4570;
+    box-shadow: 0 2px 8px rgba(137, 91, 138, 0.3);
+}
+
+.selected-songs-filter-btn.active:hover {
+    background: linear-gradient(45deg, #7a5179, #5f3e60);
+    border-color: #5f3e60;
+    box-shadow: 0 4px 12px rgba(137, 91, 138, 0.4);
+    transform: translateY(-1px);
+}
+
+/* フィルタオフ状態（非アクティブ） */
+.selected-songs-filter-btn.inactive {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+.selected-songs-filter-btn.inactive:hover {
+    background: rgba(107, 114, 128, 0.2);
+    color: #4b5563;
+    border-color: #9ca3af;
+}
+
 .visualize-btn {
     background: linear-gradient(45deg, #C39143, #BA9597);
     color: white;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    width: 200px; /* 固定幅に変更 */
+    min-width: 200px; /* 最小幅も同じに */
+    max-width: 200px; /* 最大幅も同じに */
+    height: 44px; /* 他のボタンと同じ高さに固定 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box; /* パディングを含めて幅計算 */
+    flex: none; /* フレックス成長・縮小を無効化 */
+}
+
+.visualize-btn .btn-text {
+    flex-shrink: 0; /* 固定テキスト部分は縮まない */
+}
+
+.visualize-btn .btn-count {
+    flex-shrink: 0; /* カウント部分も縮まない */
+    min-width: 50px; /* カウント部分の最小幅を拡大 */
+    text-align: center; /* 中央揃えで安定 */
 }
 
 .visualize-btn:disabled {
@@ -435,6 +490,42 @@ body {
     gap: 10px;
 }
 
+.sort-buttons {
+    display: flex;
+    gap: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid #e0e0e0;
+}
+
+.sort-btn {
+    border: none;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: white;
+    color: #333;
+    border-right: 1px solid #e0e0e0;
+}
+
+.sort-btn:last-child {
+    border-right: none;
+}
+
+.sort-btn:hover {
+    background: #f5f5f5;
+}
+
+.sort-btn.active {
+    background: #b94047;
+    color: white;
+}
+
+.sort-btn.active:hover {
+    background: #a03940;
+}
+
 .control-group label {
     font-weight: 600;
     color: #333;
@@ -457,6 +548,93 @@ body {
     min-height: 400px;
     border-radius: 8px;
     display: block;
+    touch-action: none; /* キャンバスでのタッチ操作を完全制御 */
+}
+
+.zoom-controls {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 10;
+}
+
+.zoom-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.zoom-btn:hover {
+    background: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.zoom-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.zoom-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pan-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.pan-horizontal {
+    display: flex;
+    gap: 2px;
+}
+
+.pan-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.85);
+    color: #333;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.pan-btn:hover {
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.pan-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* 中程度の画面サイズ用の調整 */
@@ -474,11 +652,25 @@ body {
 
 .visualization-info {
     margin-top: 20px;
+    margin-right: 160px; /* ボタン分のスペースを確保（横並び分） */
     padding: 15px;
     background: rgba(185, 64, 71, 0.05);
     border-radius: 8px;
     font-size: 0.9rem;
     color: #666;
+}
+
+.visualization-hint {
+    margin-top: 15px;
+    margin-right: 160px; /* ボタン分のスペースを確保 */
+    padding: 12px 15px;
+    background: rgba(137, 91, 138, 0.1); /* 古代紫の薄い色 */
+    border: 1px solid rgba(137, 91, 138, 0.2);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #895B8A; /* 古代紫 */
+    font-weight: 500;
+    text-align: left;
 }
 
 /* Artist and Member Selection Panel */
@@ -545,6 +737,12 @@ body {
     gap: 10px;
     padding: 8px 0;
     border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.artist-checkbox-item:hover, .member-checkbox-item:hover {
+    background-color: #f8f8f8;
 }
 
 .artist-checkbox-item:last-child, .member-checkbox-item:last-child {
@@ -691,6 +889,20 @@ body {
         width: 100%;
     }
     
+    .sort-buttons {
+        width: 100%;
+    }
+    
+    .sort-btn {
+        flex: 1;
+        min-height: 44px; /* タッチターゲット最小サイズ */
+    }
+    
+    #backBtnTop {
+        width: 100%;
+        margin-top: 5px;
+    }
+    
     .control-group label {
         font-size: 0.9rem;
         margin-bottom: 5px;
@@ -706,21 +918,47 @@ body {
     
     .selection-controls {
         flex-direction: column;
-        gap: 10px;
+        gap: 15px;
+        width: 100%;
     }
     
-    .basic-controls, .artist-controls {
-        justify-content: center;
+    .basic-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+    
+    .artist-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+        position: relative;
+    }
+    
+    .visualize-btn {
+        width: 100%;
+        margin-top: 10px;
+        min-width: auto; /* モバイルでは最小幅制限を解除 */
     }
     
     /* ボタン */
-    .control-btn, .visualize-btn, .back-btn {
+    .control-btn, .back-btn {
         font-size: 0.9rem;
         padding: 12px 16px;
         width: 100%;
-        max-width: 280px;
-        margin: 0 auto;
+        max-width: none;
+        margin: 0;
         min-height: 44px; /* タッチターゲット最小サイズ */
+    }
+    
+    .visualize-btn {
+        font-size: 0.9rem;
+        padding: 12px 16px;
+        min-height: 44px;
+        margin: 0;
+        max-width: none;
     }
     
     .similar-controls {
@@ -833,6 +1071,12 @@ body {
     .artist-checkbox-item, .member-checkbox-item {
         padding: 12px 8px;
         min-height: 44px;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
+    
+    .artist-checkbox-item:hover, .member-checkbox-item:hover {
+        background-color: #e8f4f8;
     }
     
     .artist-checkbox-item input[type="checkbox"], 
@@ -862,6 +1106,47 @@ body {
     #visualizationCanvas {
         height: 400px;
         max-height: 70vh;
+    }
+    
+    .zoom-controls {
+        bottom: 15px;
+        left: 15px; /* 左側に移動してスマホの凡例と重ならないように */
+        right: auto;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .zoom-group {
+        flex-direction: row;
+        gap: 5px;
+    }
+    
+    .zoom-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+        min-height: 36px; /* タッチターゲット最小サイズ確保 */
+    }
+    
+    .pan-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+        min-height: 30px; /* タッチターゲット最小サイズ確保 */
+    }
+    
+    .visualization-info {
+        margin-right: 0;
+        margin-left: 120px; /* ボタン分のスペースを左側に確保 */
+    }
+    
+    .visualization-hint {
+        margin-right: 0;
+        margin-left: 120px; /* ボタン分のスペースを左側に確保 */
+        font-size: 0.8rem;
+        padding: 10px 12px;
+        margin-top: 12px;
     }
 }
 

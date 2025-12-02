@@ -8,8 +8,13 @@ class UIManager {
         this.artistColors = this.initializeArtistColors();
         this.similarSongsDisplayed = 12; // デフォルト表示数
         this.allSimilarSongs = []; // 全類似楽曲データ
+        this.filteredSimilarSongs = []; // フィルタ後の類似楽曲データ
         this.currentSortOrder = 'desc'; // 現在のソート順
         this.currentDisplayCount = '12'; // 現在の表示数
+        this.currentArtistFilter = ''; // 現在のアーティストフィルタ
+        this.currentMemberFilter = ''; // 現在のメンバーフィルタ
+        this.selectedSongsFilter = []; // 散布図から遷移時の選択楽曲リスト
+        this.useSelectedSongsFilter = true; // 選択楽曲フィルタのオンオフ（デフォルト：オン）
     }
 
     /**
@@ -25,11 +30,21 @@ class UIManager {
      */
     setupEventListeners() {
         const backBtn = document.getElementById('backBtn');
+        const backBtnTop = document.getElementById('backBtnTop');
         const showMoreBtn = document.getElementById('showMoreBtn');
-        const sortOrder = document.getElementById('sortOrder');
-        const displayCount = document.getElementById('displayCount');
+        const sortTopBtn = document.getElementById('sortTopBtn');
+        const sortBottomBtn = document.getElementById('sortBottomBtn');
+        
+        // 類似楽曲画面のプルダウンフィルタ
+        const similarArtistFilter = document.getElementById('similarArtistFilter');
+        const similarMemberFilter = document.getElementById('similarMemberFilter');
+        const selectedSongsFilterBtn = document.getElementById('selectedSongsFilterBtn');
         
         backBtn.addEventListener('click', () => {
+            this.handleBackNavigation();
+        });
+
+        backBtnTop.addEventListener('click', () => {
             this.handleBackNavigation();
         });
 
@@ -37,14 +52,25 @@ class UIManager {
             this.showMoreSimilarSongs();
         });
 
-        sortOrder.addEventListener('change', (e) => {
-            this.currentSortOrder = e.target.value;
-            this.updateSimilarDisplay();
+        sortTopBtn.addEventListener('click', () => {
+            this.setSortOrder('desc');
         });
 
-        displayCount.addEventListener('change', (e) => {
-            this.currentDisplayCount = e.target.value;
-            this.updateSimilarDisplay();
+        sortBottomBtn.addEventListener('click', () => {
+            this.setSortOrder('asc');
+        });
+
+        // 類似楽曲画面のプルダウンフィルタイベント
+        similarArtistFilter?.addEventListener('change', (e) => {
+            this.filterSimilarSongsByArtist(e.target.value);
+        });
+
+        similarMemberFilter?.addEventListener('change', (e) => {
+            this.filterSimilarSongsByMember(e.target.value);
+        });
+
+        selectedSongsFilterBtn?.addEventListener('click', () => {
+            this.toggleSelectedSongsFilter();
         });
 
         // モバイル対応: パネルの外側クリックで閉じる
@@ -62,19 +88,23 @@ class UIManager {
             const artistBtn = document.getElementById('artistSelectionBtn');
             const memberBtn = document.getElementById('memberSelectionBtn');
             
-            // アーティストパネルの外側クリック
+            // 類似楽曲画面はプルダウンフィルタなので不要
+            
+            // 楽曲一覧のアーティストパネルの外側クリック
             if (artistPanel && artistPanel.style.display === 'block') {
                 if (!artistPanel.contains(e.target) && e.target !== artistBtn) {
                     artistPanel.style.display = 'none';
                 }
             }
             
-            // メンバーパネルの外側クリック
+            // 楽曲一覧のメンバーパネルの外側クリック
             if (memberPanel && memberPanel.style.display === 'block') {
                 if (!memberPanel.contains(e.target) && e.target !== memberBtn) {
                     memberPanel.style.display = 'none';
                 }
             }
+            
+            // プルダウンフィルタなので外側クリック処理は不要
         });
 
         // タッチスクロール改善（iOS Safari対策）
@@ -150,6 +180,17 @@ class UIManager {
         this.currentView = 'similar';
         this.currentSelectedSong = song;
 
+        // 散布図から遷移した場合の選択楽曲フィルタを設定
+        if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
+            const selectedSongs = JSON.parse(sessionStorage.getItem('selectedSongsForVisualization') || '[]');
+            this.selectedSongsFilter = selectedSongs.map(s => s.id);
+            this.useSelectedSongsFilter = true; // デフォルトでオン
+        } else {
+            // 楽曲一覧から直接遷移した場合はフィルタをクリア
+            this.selectedSongsFilter = [];
+            this.useSelectedSongsFilter = false;
+        }
+
         this.displaySelectedSong(song);
         this.displaySimilarSongs(song.id);
         this.updateBackButton();
@@ -211,19 +252,27 @@ class UIManager {
         card.className = 'song-card';
         card.dataset.songId = song.id;
 
-        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
-        const artistInfo = song.artist_group && song.artist_group.trim() 
-            ? song.artist_group.trim() 
-            : 'ソロ・その他';
+        // アーティスト情報の整理 - 表示用には元の名前またはmembersを使用
+        const originalArtist = song.artist_group?.trim() || '';
+        let artistInfo;
+        if (originalArtist) {
+            artistInfo = originalArtist;
+        } else if (song.members && song.members.length > 0) {
+            // memberOrderに従ってソート
+            const sortedMembers = this.sortMembersByOrder(song.members);
+            artistInfo = sortedMembers.join(', ');
+        } else {
+            artistInfo = 'ソロ・その他';
+        }
 
-        // アーティスト別の色を取得
-        const artistColor = this.getArtistColor(song.artist_group || song.artists);
+        // アーティスト別の色を取得（元のアーティスト名で色を決定）
+        const artistColor = this.getArtistColor(originalArtist || 'ソロ・その他');
 
         card.innerHTML = `
             <div class="artist-color-bar" style="background-color: ${artistColor}"></div>
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>アーティスト:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
             </div>
         `;
 
@@ -261,15 +310,30 @@ class UIManager {
     displaySelectedSong(song) {
         const selectedSongEl = document.getElementById('selectedSong');
         
-        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
-        const artistInfo = song.artist_group && song.artist_group.trim() 
-            ? song.artist_group.trim() 
-            : 'ソロ・その他';
+        // アーティスト情報の整理 - ユニット名 + メンバーのフォーマット
+        const originalArtist = song.artist_group?.trim() || '';
+        let artistInfo;
+        if (originalArtist) {
+            // ユニット名がある場合、メンバーも追加
+            if (song.members && song.members.length > 0) {
+                // memberOrderに従ってソート
+                const sortedMembers = this.sortMembersByOrder(song.members);
+                artistInfo = `${originalArtist} [${sortedMembers.join(', ')}]`;
+            } else {
+                artistInfo = originalArtist;
+            }
+        } else if (song.members && song.members.length > 0) {
+            // memberOrderに従ってソート
+            const sortedMembers = this.sortMembersByOrder(song.members);
+            artistInfo = sortedMembers.join(', ');
+        } else {
+            artistInfo = 'ソロ・その他';
+        }
 
         selectedSongEl.innerHTML = `
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>アーティスト:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
             </div>
         `;
     }
@@ -285,7 +349,7 @@ class UIManager {
         if (!this.allSimilarSongs || this.allSimilarSongs.length === 0) {
             similarSongsEl.innerHTML = `
                 <div class="no-results">
-                    この楽曲の類似楽曲が見つかりませんでした
+                    No Resonance Links found for this song
                 </div>
             `;
             showMoreBtn.style.display = 'none';
@@ -295,10 +359,13 @@ class UIManager {
         // デフォルト設定をリセット  
         this.currentSortOrder = 'desc';
         this.currentDisplayCount = '12';
-        document.getElementById('sortOrder').value = 'desc';
-        document.getElementById('displayCount').value = '12';
+        this.currentArtistFilter = '';
+        this.currentMemberFilter = '';
+        this.updateSortButtons();
         
         this.updateSimilarDisplay();
+        this.populateSimilarFilters();
+        this.updateSelectedSongsFilterButton();
     }
 
     /**
@@ -310,14 +377,26 @@ class UIManager {
         const card = document.createElement('div');
         card.className = 'similar-song';
         card.dataset.songId = song.id;
+        
+        // フィルタ用のデータ属性を追加
+        card.dataset.artistGroup = song.artist_group || '';
+        card.dataset.members = song.members ? song.members.join(',') : '';
 
-        // アーティスト情報の整理 - artist_groupのみ使用、存在しない場合は「ソロ・その他」
-        const artistInfo = song.artist_group && song.artist_group.trim() 
-            ? song.artist_group.trim() 
-            : 'ソロ・その他';
+        // アーティスト情報の整理 - 表示用には元の名前またはmembersを使用
+        const originalArtist = song.artist_group?.trim() || '';
+        let artistInfo;
+        if (originalArtist) {
+            artistInfo = originalArtist;
+        } else if (song.members && song.members.length > 0) {
+            // memberOrderに従ってソート
+            const sortedMembers = this.sortMembersByOrder(song.members);
+            artistInfo = sortedMembers.join(', ');
+        } else {
+            artistInfo = 'ソロ・その他';
+        }
 
-        // アーティスト別の色を取得
-        const artistColor = this.getArtistColor(song.artist_group || song.artists);
+        // アーティスト別の色を取得（元のアーティスト名で色を決定）
+        const artistColor = this.getArtistColor(originalArtist || 'ソロ・その他');
 
         // 類似度をパーセンテージに変換
         const similarityPercent = (similarity * 100).toFixed(1);
@@ -330,7 +409,7 @@ class UIManager {
             </div>
             <div class="song-title">${this.escapeHtml(song.title)}</div>
             <div class="song-meta">
-                ${artistInfo ? `<span><strong>アーティスト:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
+                ${artistInfo ? `<span><strong>Unit:</strong> ${this.escapeHtml(artistInfo)}</span>` : ''}
             </div>
         `;
 
@@ -352,7 +431,7 @@ class UIManager {
         const similarSongsEl = document.getElementById('similarSongs');
         similarSongsEl.innerHTML = '';
 
-        const songsToShow = this.allSimilarSongs.slice(0, this.similarSongsDisplayed);
+        const songsToShow = this.filteredSimilarSongs.slice(0, this.similarSongsDisplayed);
         
         songsToShow.forEach(simData => {
             const similarCard = this.createSimilarSongCard(simData);
@@ -366,9 +445,12 @@ class UIManager {
     updateShowMoreButton() {
         const showMoreBtn = document.getElementById('showMoreBtn');
         
-        if (this.similarSongsDisplayed < this.allSimilarSongs.length) {
-            const remaining = this.allSimilarSongs.length - this.similarSongsDisplayed;
-            showMoreBtn.textContent = `さらに表示 (+${remaining}曲)`;
+        if (this.similarSongsDisplayed < this.filteredSimilarSongs.length) {
+            const remaining = this.filteredSimilarSongs.length - this.similarSongsDisplayed;
+            const nextIncrement = Math.min(6, remaining);
+            const incrementText = nextIncrement === 1 ? '1 song' : `${nextIncrement} songs`;
+            const remainingText = remaining === 1 ? '1 song' : `${remaining} songs`;
+            showMoreBtn.textContent = `Show More (+${incrementText}/${remainingText})`;
             showMoreBtn.style.display = 'block';
         } else {
             showMoreBtn.style.display = 'none';
@@ -383,28 +465,52 @@ class UIManager {
             return;
         }
 
+        // フィルタ処理
+        let filteredSongs = [...this.allSimilarSongs];
+        
+        // 選択楽曲フィルタ（散布図から遷移時）
+        if (this.useSelectedSongsFilter && this.selectedSongsFilter.length > 0) {
+            filteredSongs = filteredSongs.filter(simData => {
+                const song = simData.song;
+                return this.selectedSongsFilter.includes(song.id);
+            });
+        }
+        
+        if (this.currentArtistFilter) {
+            filteredSongs = filteredSongs.filter(simData => {
+                const song = simData.song;
+                const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+                return mappedArtist === this.currentArtistFilter;
+            });
+        }
+        if (this.currentMemberFilter) {
+            filteredSongs = filteredSongs.filter(simData => {
+                const song = simData.song;
+                return song?.members && song.members.includes(this.currentMemberFilter);
+            });
+        }
+
         // ソート処理
-        let sortedSongs = [...this.allSimilarSongs];
         if (this.currentSortOrder === 'asc') {
-            sortedSongs.sort((a, b) => a.similarity - b.similarity);
+            filteredSongs.sort((a, b) => a.similarity - b.similarity);
         } else {
-            sortedSongs.sort((a, b) => b.similarity - a.similarity);
+            filteredSongs.sort((a, b) => b.similarity - a.similarity);
         }
 
         // ランク再計算
-        sortedSongs.forEach((song, index) => {
+        filteredSongs.forEach((song, index) => {
             song.rank = index + 1;
         });
 
-        this.allSimilarSongs = sortedSongs;
+        this.filteredSimilarSongs = filteredSongs;
 
         // 表示数決定
         if (this.currentDisplayCount === 'all') {
-            this.similarSongsDisplayed = this.allSimilarSongs.length;
+            this.similarSongsDisplayed = this.filteredSimilarSongs.length;
         } else {
             this.similarSongsDisplayed = Math.min(
                 parseInt(this.currentDisplayCount),
-                this.allSimilarSongs.length
+                this.filteredSimilarSongs.length
             );
         }
 
@@ -417,12 +523,14 @@ class UIManager {
      */
     updateBackButton() {
         const backBtn = document.getElementById('backBtn');
-        if (backBtn) {
-            if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
-                backBtn.textContent = '🌌 可視化に戻る';
-            } else {
-                backBtn.textContent = '楽曲一覧に戻る';
-            }
+        const backBtnTop = document.getElementById('backBtnTop');
+        
+        if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
+            if (backBtn) backBtn.textContent = '🌌 Return to Map';
+            if (backBtnTop) backBtnTop.textContent = '🌌 Return to Map';
+        } else {
+            if (backBtn) backBtn.textContent = 'Return to Archive';
+            if (backBtnTop) backBtnTop.textContent = 'Return to Archive';
         }
     }
 
@@ -433,10 +541,37 @@ class UIManager {
         const increment = 6;
         this.similarSongsDisplayed = Math.min(
             this.similarSongsDisplayed + increment, 
-            this.allSimilarSongs.length
+            this.filteredSimilarSongs.length
         );
         this.renderSimilarSongs();
         this.updateShowMoreButton();
+    }
+
+    /**
+     * ソート順の設定
+     */
+    setSortOrder(order) {
+        this.currentSortOrder = order;
+        this.updateSortButtons();
+        this.updateSimilarDisplay();
+    }
+
+    /**
+     * ソートボタンの状態を更新
+     */
+    updateSortButtons() {
+        const sortTopBtn = document.getElementById('sortTopBtn');
+        const sortBottomBtn = document.getElementById('sortBottomBtn');
+        
+        if (sortTopBtn && sortBottomBtn) {
+            if (this.currentSortOrder === 'desc') {
+                sortTopBtn.classList.add('active');
+                sortBottomBtn.classList.remove('active');
+            } else {
+                sortTopBtn.classList.remove('active');
+                sortBottomBtn.classList.add('active');
+            }
+        }
     }
 
     /**
@@ -471,16 +606,8 @@ class UIManager {
      * アーティスト色の初期化
      */
     initializeArtistColors() {
-        return {
-            'Edel Note': '#d4d4d4',
-            '蓮ノ空女学院スクールアイドルクラブ': '#ffc0cb',
-            'スリーズブーケ': '#e95464',
-            'みらくらぱーく!': '#ffff00',
-            'DOLLCHESTRA': '#0000ff',
-            '藤島慈(CV.月音こな)': '#C8C2C6',
-            '夕霧綴理(CV.佐々木琴子)': '#BA2636',
-            '乙宗梢(CV.花宮初奈)': '#68BE8D'
-        };
+        // 設定ファイルの色設定を使用
+        return { ...window.AppConfig.artistColors };
     }
 
     /**
@@ -515,6 +642,36 @@ class UIManager {
         const lightness = 65 + (Math.abs(hash) % 20);  // 65-85%
 
         return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    /**
+     * メンバーをmemberOrderに従ってソート
+     */
+    sortMembersByOrder(members) {
+        if (!members || !Array.isArray(members)) return [];
+        
+        const memberOrder = window.AppConfig.memberOrder;
+        
+        // memberOrderの順序でソート
+        return [...members].sort((a, b) => {
+            const indexA = memberOrder.indexOf(a);
+            const indexB = memberOrder.indexOf(b);
+            
+            // 両方ともmemberOrderにある場合
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            }
+            // aのみmemberOrderにある場合
+            if (indexA !== -1) {
+                return -1;
+            }
+            // bのみmemberOrderにある場合
+            if (indexB !== -1) {
+                return 1;
+            }
+            // 両方ともmemberOrderにない場合は元の順序を保持
+            return 0;
+        });
     }
 
     /**
@@ -560,6 +717,180 @@ class UIManager {
         // TODO: トースト通知やスナックバーの実装
         console.log(`✅ ${message}`);
     }
+
+    // === 類似楽曲画面のプルダウンフィルタ機能 ===
+
+    /**
+     * 類似楽曲のフィルタプルダウンを生成
+     */
+    populateSimilarFilters() {
+        this.populateSimilarArtistFilter();
+        this.populateSimilarMemberFilter();
+    }
+
+    /**
+     * 類似楽曲のアーティストプルダウンを生成
+     */
+    populateSimilarArtistFilter() {
+        const artistFilter = document.getElementById('similarArtistFilter');
+        if (!artistFilter || !this.allSimilarSongs) return;
+
+        // 表示中の類似楽曲からアーティストを抽出（マッピング適用）
+        const artistCounts = {};
+        this.allSimilarSongs.forEach(similarityItem => {
+            const song = similarityItem.song;
+            const mappedArtist = window.AppConfig.getMappedArtistGroup(song.artist_group);
+            if (!artistCounts[mappedArtist]) {
+                artistCounts[mappedArtist] = [];
+            }
+            artistCounts[mappedArtist].push(song);
+        });
+
+        // 設定ファイルの順序でアーティストをソート
+        const sortedArtists = window.AppConfig.sortByOrder(artistCounts, window.AppConfig.artistOrder);
+
+        // 既存のオプションをクリア（「All Units」以外）
+        artistFilter.innerHTML = '<option value="">All Units</option>';
+
+        sortedArtists.forEach(([artist, songs]) => {
+            const option = document.createElement('option');
+            option.value = artist;
+            option.textContent = `${artist} (${songs.length}曲)`;
+            artistFilter.appendChild(option);
+        });
+    }
+
+    /**
+     * 類似楽曲のメンバープルダウンを生成
+     */
+    populateSimilarMemberFilter() {
+        const memberFilter = document.getElementById('similarMemberFilter');
+        if (!memberFilter || !this.allSimilarSongs) return;
+
+        // 表示中の類似楽曲からメンバーを抽出
+        const memberCounts = {};
+        this.allSimilarSongs.forEach(similarityItem => {
+            const song = similarityItem.song;
+            if (song?.members && Array.isArray(song.members)) {
+                song.members.forEach(member => {
+                    if (!memberCounts[member]) {
+                        memberCounts[member] = [];
+                    }
+                    memberCounts[member].push(song);
+                });
+            }
+        });
+
+        // 設定ファイルの順序でメンバーをソート
+        const sortedMembers = window.AppConfig.sortByOrder(memberCounts, window.AppConfig.memberOrder);
+
+        // 既存のオプションをクリア（「All Members」以外）
+        memberFilter.innerHTML = '<option value="">All Members</option>';
+
+        sortedMembers.forEach(([member, songs]) => {
+            const option = document.createElement('option');
+            option.value = member;
+            option.textContent = `${member} (${songs.length}曲)`;
+            memberFilter.appendChild(option);
+        });
+    }
+
+    /**
+     * アーティストによる類似楽曲フィルタ（プルダウン版）
+     */
+    filterSimilarSongsByArtist(selectedArtist) {
+        const memberFilter = document.getElementById('similarMemberFilter');
+        
+        // フィルタ状態を更新
+        this.currentArtistFilter = selectedArtist;
+        this.currentMemberFilter = '';
+        this.similarSongsDisplayed = 12; // 表示数をリセット
+        
+        // メンバーフィルタをリセット
+        if (memberFilter) {
+            memberFilter.value = '';
+        }
+        
+        // 表示を更新
+        this.updateSimilarDisplay();
+        
+        console.log(selectedArtist ? `🎭 ${selectedArtist}でフィルタ` : '🎭 アーティストフィルタをクリア');
+    }
+
+    /**
+     * メンバーによる類似楽曲フィルタ（プルダウン版）
+     */
+    filterSimilarSongsByMember(selectedMember) {
+        const artistFilter = document.getElementById('similarArtistFilter');
+        
+        // フィルタ状態を更新
+        this.currentMemberFilter = selectedMember;
+        this.currentArtistFilter = '';
+        this.similarSongsDisplayed = 12; // 表示数をリセット
+        
+        // アーティストフィルタをリセット
+        if (artistFilter) {
+            artistFilter.value = '';
+        }
+        
+        // 表示を更新
+        this.updateSimilarDisplay();
+        
+        console.log(selectedMember ? `👥 ${selectedMember}でフィルタ` : '👥 メンバーフィルタをクリア');
+    }
+
+    /**
+     * 選択楽曲フィルタボタンの表示を更新
+     */
+    updateSelectedSongsFilterButton() {
+        const filterBtn = document.getElementById('selectedSongsFilterBtn');
+        const filterText = document.getElementById('selectedSongsFilterText');
+        
+        if (!filterBtn || !filterText) return;
+        
+        if (this.selectedSongsFilter.length > 0) {
+            // 散布図から遷移した場合のみボタンを表示
+            filterBtn.style.display = 'inline-block';
+            
+            // 状態に応じてテキストとCSSクラスを切り替え
+            if (this.useSelectedSongsFilter) {
+                filterText.textContent = '🎯 Clear Filter';
+                filterBtn.classList.remove('inactive');
+                filterBtn.classList.add('active');
+            } else {
+                filterText.textContent = '🎯 Apply Filter';
+                filterBtn.classList.remove('active');
+                filterBtn.classList.add('inactive');
+            }
+        } else {
+            // 選択楽曲がない場合はボタンを非表示
+            filterBtn.style.display = 'none';
+        }
+    }
+
+    /**
+     * 選択楽曲フィルタのオンオフ切り替え
+     */
+    toggleSelectedSongsFilter() {
+        this.useSelectedSongsFilter = !this.useSelectedSongsFilter;
+        this.similarSongsDisplayed = 12; // 表示数をリセット
+        
+        // アーティスト・メンバーフィルタをクリア
+        this.currentArtistFilter = '';
+        this.currentMemberFilter = '';
+        
+        const artistFilter = document.getElementById('similarArtistFilter');
+        const memberFilter = document.getElementById('similarMemberFilter');
+        if (artistFilter) artistFilter.value = '';
+        if (memberFilter) memberFilter.value = '';
+        
+        this.updateSelectedSongsFilterButton();
+        this.updateSimilarDisplay();
+        
+        const status = this.useSelectedSongsFilter ? 'オン' : 'オフ';
+        console.log(`🎯 選択楽曲フィルタ: ${status}`);
+    }
+
 }
 
 // グローバルインスタンス

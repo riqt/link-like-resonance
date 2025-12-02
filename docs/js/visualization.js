@@ -1,5 +1,5 @@
 /**
- * 可視化管理 - Embedding可視化とPCA/t-SNE計算
+ * 可視化管理 - 類似度ベースForce-Directed Layout
  */
 
 // Chart.js datalabelsプラグインを登録（読み込み済みかチェック）
@@ -10,14 +10,30 @@ if (typeof ChartDataLabels !== 'undefined') {
     console.warn('⚠️ ChartDataLabelsプラグインが見つかりません。代替手段を使用します');
 }
 
+// Chart.js zoomプラグインを登録
+if (typeof window.zoomPlugin !== 'undefined') {
+    Chart.register(window.zoomPlugin);
+    console.log('✅ Chart.js zoomプラグインを登録しました');
+} else if (typeof ChartZoom !== 'undefined') {
+    Chart.register(ChartZoom);
+    console.log('✅ Chart.js zoomプラグインを登録しました');
+} else {
+    console.warn('⚠️ Chart.js zoomプラグインが見つかりません');
+}
+
 class VisualizationManager {
     constructor() {
         this.chart = null;
         this.currentData = null;
-        this.currentMethod = 'tsne';
-        this.showLabels = false; // デフォルトオフ
+        this.currentMethod = 'force-directed';
+        this.showLabels = true; // デフォルトオン
+        this.showLegend = false; // デフォルトオフ
         this.colorByGenre = true; // 常時オン（変更不可）
         this.genreColors = this.generateGenreColors();
+        this.cachedVisualization = null; // キャッシュされた可視化結果
+        this.similaritiesData = null; // 類似度データのキャッシュ
+        this.forceLayoutCache = new Map(); // Force-Directed Layoutのキャッシュ
+        this.isPanning = false; // パン操作中フラグ
     }
 
     /**
@@ -32,6 +48,13 @@ class VisualizationManager {
         } else {
             console.error('❌ Chart.js datalabelsプラグインが読み込まれていません');
         }
+        
+        // zoomプラグインが利用可能かチェック
+        if (typeof ChartZoom !== 'undefined' || typeof window.zoomPlugin !== 'undefined') {
+            console.log('✅ Chart.js zoomプラグインが利用可能です');
+        } else {
+            console.error('❌ Chart.js zoomプラグインが読み込まれていません');
+        }
     }
 
     /**
@@ -39,23 +62,58 @@ class VisualizationManager {
      */
     setupEventListeners() {
         const showLabelsCheck = document.getElementById('showLabelsCheck');
-        const colorByGenreCheck = document.getElementById('colorByGenreCheck');
-        const updateBtn = document.getElementById('updateVisualizationBtn');
+        const showLegendCheck = document.getElementById('showLegendCheck');
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const panUpBtn = document.getElementById('panUpBtn');
+        const panDownBtn = document.getElementById('panDownBtn');
+        const panLeftBtn = document.getElementById('panLeftBtn');
+        const panRightBtn = document.getElementById('panRightBtn');
         const backBtn = document.getElementById('backToSongsBtn');
 
-        // 楽曲名表示はデフォルトオフ
-        showLabelsCheck.checked = false;
+        // 楽曲名表示はデフォルトオン
+        showLabelsCheck.checked = true;
         showLabelsCheck.addEventListener('change', (e) => {
             this.showLabels = e.target.checked;
-            this.updateVisualization();
+            if (this.chart) {
+                this.chart.update();
+            }
         });
 
-        // ジャンル別色分けは常時オン（変更不可）
-        colorByGenreCheck.checked = true;
-        colorByGenreCheck.disabled = true;
+        // 凡例表示はデフォルトオフ
+        showLegendCheck.checked = false;
+        showLegendCheck.addEventListener('change', (e) => {
+            this.showLegend = e.target.checked;
+            this.updateLegendDisplay();
+        });
 
-        updateBtn.addEventListener('click', () => {
-            this.updateVisualization();
+        resetZoomBtn.addEventListener('click', () => {
+            this.resetZoom();
+        });
+
+        zoomInBtn.addEventListener('click', () => {
+            this.zoomIn();
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+            this.zoomOut();
+        });
+
+        panUpBtn.addEventListener('click', () => {
+            this.panUp();
+        });
+
+        panDownBtn.addEventListener('click', () => {
+            this.panDown();
+        });
+
+        panLeftBtn.addEventListener('click', () => {
+            this.panLeft();
+        });
+
+        panRightBtn.addEventListener('click', () => {
+            this.panRight();
         });
 
         backBtn.addEventListener('click', () => {
@@ -100,29 +158,34 @@ class VisualizationManager {
                 throw new Error('可視化には最低3曲の選択が必要です');
             }
 
-            // embeddingデータの読み込み
-            const embeddingData = await this.loadEmbeddingData();
-            if (!embeddingData) {
-                throw new Error('Embeddingデータの読み込みに失敗しました');
+            // 類似度データの読み込み
+            if (!this.similaritiesData) {
+                this.similaritiesData = await this.loadSimilaritiesData();
+                if (!this.similaritiesData) {
+                    throw new Error('類似度データの読み込みに失敗しました');
+                }
             }
 
-            // 選択楽曲のembeddingを抽出
-            const selectedEmbeddings = this.extractSelectedEmbeddings(selectedSongs, embeddingData);
-            if (selectedEmbeddings.length === 0) {
-                throw new Error('選択楽曲のembeddingデータが見つかりません');
+            this.currentData = selectedSongs;
+
+            // キャッシュキーを生成
+            const cacheKey = this.generateCacheKey(selectedSongs);
+            
+            // キャッシュから取得を試行
+            if (this.forceLayoutCache.has(cacheKey)) {
+                console.log('💾 キャッシュからレイアウトを取得');
+                const cachedLayout = this.forceLayoutCache.get(cacheKey);
+                this.renderVisualization(cachedLayout);
+            } else {
+                // Force-Directed Layoutで可視化実行
+                console.log('🔄 Force-Directed Layoutを計算中...');
+                const layout = await this.performForceDirectedLayout(selectedSongs);
+                
+                // キャッシュに保存
+                this.forceLayoutCache.set(cacheKey, layout);
+                this.renderVisualization(layout);
             }
 
-            if (selectedEmbeddings.length < 3) {
-                throw new Error(`有効なembeddingデータが${selectedEmbeddings.length}件のみです。可視化には最低3件必要です`);
-            }
-
-            this.currentData = selectedEmbeddings;
-
-            // WebGLの状態をチェック・初期化
-            await this.initializeTensorFlow();
-
-            // 可視化実行
-            await this.performDimensionReduction();
             this.updateVisualizationInfo();
 
         } catch (error) {
@@ -132,367 +195,417 @@ class VisualizationManager {
     }
 
     /**
-     * TensorFlow.jsの初期化とWebGL状態確認
+     * 類似度データの読み込み
      */
-    async initializeTensorFlow() {
+    async loadSimilaritiesData() {
         try {
-            // メモリクリーンアップ
-            if (tf.memory().numTensors > 100) {
-                console.log('🧹 TensorFlow.js メモリクリーンアップ実行');
-                tf.dispose();
-            }
-
-            // WebGL状態チェック
-            await tf.ready();
-            
-            // バックエンドの確認
-            const backend = tf.getBackend();
-            console.log(`🔧 TensorFlow.js バックエンド: ${backend}`);
-            
-            if (backend !== 'webgl') {
-                console.warn('⚠️ WebGLが利用できません。CPUバックエンドを使用します');
-            }
-
-        } catch (error) {
-            console.warn('⚠️ TensorFlow.js初期化警告:', error);
-            // WebGLで問題がある場合はCPUバックエンドに切り替え
-            try {
-                await tf.setBackend('cpu');
-                await tf.ready();
-                console.log('💾 CPUバックエンドに切り替えました');
-            } catch (fallbackError) {
-                throw new Error(`TensorFlow.jsの初期化に失敗: ${fallbackError.message}`);
-            }
-        }
-    }
-
-    /**
-     * embeddingデータの読み込み
-     */
-    async loadEmbeddingData() {
-        try {
-            const response = await fetch('data/embeddings.json');
+            const response = await fetch('data/similarities.json');
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
+            console.log('✅ 類似度データを読み込みました');
             return await response.json();
         } catch (error) {
-            console.error('Embeddingデータ読み込みエラー:', error);
+            console.error('類似度データ読み込みエラー:', error);
             return null;
         }
     }
 
     /**
-     * 選択楽曲のembeddingを抽出
+     * キャッシュキーの生成
      */
-    extractSelectedEmbeddings(selectedSongs, embeddingData) {
-        const selectedEmbeddings = [];
-
-        for (const song of selectedSongs) {
-            const songId = song.id.toString();
-            if (embeddingData[songId]) {
-                selectedEmbeddings.push({
-                    id: song.id,
-                    title: song.title,
-                    genre: song.genre,
-                    artist_group: song.artist_group,
-                    embedding: embeddingData[songId].embedding
-                });
-            }
-        }
-
-        console.log(`📊 抽出されたembedding: ${selectedEmbeddings.length}/${selectedSongs.length}楽曲`);
-        return selectedEmbeddings;
+    generateCacheKey(selectedSongs) {
+        const sortedIds = selectedSongs.map(song => song.id).sort((a, b) => a - b);
+        return `force_layout_${sortedIds.join('_')}`;
     }
 
     /**
-     * 次元削減の実行
+     * 類似度の取得
      */
-    async performDimensionReduction() {
-        if (!this.currentData || this.currentData.length < 3) {
-            throw new Error('次元削減には3つ以上のデータが必要です');
-        }
-
-        console.log(`🔄 t-SNE風の次元削減開始... (${this.currentData.length}楽曲)`);
-
-        let tensor = null;
-        let reducedData = null;
-
-        try {
-            // embeddingデータの前処理とバリデーション
-            const embeddings = this.validateAndPreprocessEmbeddings();
-            
-            // テンソル作成
-            tensor = tf.tensor2d(embeddings);
-            console.log(`📊 入力テンソル形状: [${tensor.shape.join(', ')}]`);
-
-            // 次元削減実行
-            reducedData = await this.performTSNE(tensor);
-            
-            if (!reducedData || reducedData.isDisposed) {
-                throw new Error('次元削減処理が失敗しました');
-            }
-
-            console.log(`📊 出力テンソル形状: [${reducedData.shape.join(', ')}]`);
-
-            // 結果を配列に変換
-            const coords = await reducedData.array();
-            
-            if (!coords || coords.length === 0) {
-                throw new Error('次元削減結果の取得に失敗しました');
-            }
-
-            // チャート描画
-            this.renderChart(coords);
-
-            console.log(`✅ t-SNE風次元削減完了`);
-
-        } catch (error) {
-            console.error('❌ 次元削減エラー:', error);
-            throw new Error(`次元削減処理エラー: ${error.message}`);
-        } finally {
-            // メモリクリーンアップ
-            if (tensor && !tensor.isDisposed) {
-                tensor.dispose();
-            }
-            if (reducedData && !reducedData.isDisposed) {
-                reducedData.dispose();
-            }
-        }
-    }
-
-    /**
-     * embeddingデータの検証と前処理
-     */
-    validateAndPreprocessEmbeddings() {
-        const embeddings = [];
+    getSimilarity(songId1, songId2) {
+        if (songId1 === songId2) return 1.0;
         
-        for (let i = 0; i < this.currentData.length; i++) {
-            const item = this.currentData[i];
-            const embedding = item.embedding;
-            
-            if (!embedding || !Array.isArray(embedding)) {
-                throw new Error(`楽曲${i+1}のembeddingデータが無効です`);
+        const id1 = String(songId1);
+        const id2 = String(songId2);
+        
+        // similarities.jsonから類似度を検索
+        if (this.similaritiesData[id1]) {
+            const similarity = this.similaritiesData[id1].find(item => item.song_id === parseInt(id2));
+            if (similarity) return similarity.similarity;
+        }
+        
+        if (this.similaritiesData[id2]) {
+            const similarity = this.similaritiesData[id2].find(item => item.song_id === parseInt(id1));
+            if (similarity) return similarity.similarity;
+        }
+        
+        return 0.1; // デフォルトの低い類似度
+    }
+
+    /**
+     * 決定的シードによる疑似乱数生成器
+     */
+    seededRandom(seed) {
+        let state = seed;
+        return function() {
+            state = (state * 9301 + 49297) % 233280;
+            return state / 233280;
+        };
+    }
+
+    /**
+     * 決定的な初期配置の生成（ランダム分布）
+     */
+    generateDeterministicLayout(selectedSongs, width, height) {
+        // 楽曲IDをソートして決定的なシードを作成
+        const songIds = selectedSongs.map(s => s.id).sort((a, b) => a - b);
+        const seed = songIds.reduce((acc, id) => acc + id, 0) % 1000000;
+        const random = this.seededRandom(seed);
+        
+        // 画面全体にランダム配置（決定的）
+        const margin = 100;
+        
+        return selectedSongs.map(() => {
+            return {
+                x: margin + random() * (width - margin * 2),
+                y: margin + random() * (height - margin * 2),
+                vx: 0,
+                vy: 0
+            };
+        });
+    }
+
+    /**
+     * Force-Directed Layoutの実行（改良版）
+     */
+    async performForceDirectedLayout(selectedSongs) {
+        const width = 1200;
+        const height = 1000;
+        const iterations = 2000; // 元に戻す
+        const initialTemp = 1.0; // 元に戻す
+        const finalTemp = 0.01; // 元に戻す
+        
+        // 決定的初期配置
+        const positions = this.generateDeterministicLayout(selectedSongs, width, height);
+        
+        // 類似度の正規化とスケーリング用の統計情報
+        let minSim = 1.0, maxSim = 0.0;
+        const similarities = new Map();
+        const relativeSimilarities = new Map();
+        
+        // 全類似度を事前計算して統計取得
+        for (let i = 0; i < selectedSongs.length; i++) {
+            for (let j = i + 1; j < selectedSongs.length; j++) {
+                const sim = this.getSimilarity(selectedSongs[i].id, selectedSongs[j].id);
+                similarities.set(`${i}-${j}`, sim);
+                minSim = Math.min(minSim, sim);
+                maxSim = Math.max(maxSim, sim);
             }
-            
-            if (embedding.length === 0) {
-                throw new Error(`楽曲${i+1}のembeddingデータが空です`);
+        }
+        
+        // 各楽曲の相対的類似度を計算
+        for (let i = 0; i < selectedSongs.length; i++) {
+            const songSimilarities = [];
+            for (let j = 0; j < selectedSongs.length; j++) {
+                if (i !== j) {
+                    const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+                    songSimilarities.push(similarities.get(key));
+                }
             }
+            // ソートして相対ランクを計算
+            songSimilarities.sort((a, b) => b - a);
             
-            // NaN や Infinity をチェック
-            const hasInvalidValues = embedding.some(val => 
-                !Number.isFinite(val) || Number.isNaN(val)
-            );
+            for (let j = 0; j < selectedSongs.length; j++) {
+                if (i !== j) {
+                    const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+                    const absSim = similarities.get(key);
+                    const rank = songSimilarities.indexOf(absSim);
+                    const relativeScore = 1 - (rank / (songSimilarities.length - 1)); // 0-1のスコア
+                    relativeSimilarities.set(`${i}-${j}`, relativeScore);
+                }
+            }
+        }
+        
+        console.log(`📊 類似度範囲: ${minSim.toFixed(3)} - ${maxSim.toFixed(3)}`);
+        
+        // シミュレーション実行
+        for (let iter = 0; iter < iterations; iter++) {
+            // 元の3段階温度制御に戻す
+            const progress = iter / iterations;
+            let temperature;
             
-            if (hasInvalidValues) {
-                console.warn(`⚠️ 楽曲${i+1}に無効な値が含まれています。正規化を試行します`);
-                // 無効な値を0に置換
-                const cleanedEmbedding = embedding.map(val => 
-                    Number.isFinite(val) ? val : 0
-                );
-                embeddings.push(cleanedEmbedding);
+            if (progress < 0.3) {
+                // 初期段階: 高温で大きな移動
+                temperature = initialTemp * (1 - progress / 0.3 * 0.5);
+            } else if (progress < 0.7) {
+                // 中間段階: 適度な冷却
+                const localProgress = (progress - 0.3) / 0.4;
+                temperature = initialTemp * 0.5 * (1 - localProgress * 0.8);
             } else {
-                embeddings.push(embedding);
-            }
-        }
-
-        // 全ての embedding の次元数をチェック
-        const firstDim = embeddings[0].length;
-        const dimensionMismatch = embeddings.some(emb => emb.length !== firstDim);
-        
-        if (dimensionMismatch) {
-            throw new Error('embedding の次元数が一致しません');
-        }
-
-        console.log(`✅ embedding検証完了: ${embeddings.length}楽曲, ${firstDim}次元`);
-        return embeddings;
-    }
-
-    /**
-     * PCAの実行
-     */
-    async performPCA(tensor) {
-        console.log('🔄 PCA計算中...');
-        
-        // データの中心化
-        const mean = tensor.mean(0);
-        const centered = tensor.sub(mean);
-        
-        // 共分散行列の計算
-        const cov = centered.transpose().matMul(centered).div(tf.scalar(tensor.shape[0] - 1));
-        
-        // 固有値分解
-        const svd = tf.linalg.svd(cov);
-        
-        // 主成分の選択（上位2成分）
-        const components = svd.u.slice([0, 0], [-1, 2]);
-        
-        // データの射影
-        const projected = centered.matMul(components);
-        
-        // メモリクリーンアップ
-        mean.dispose();
-        centered.dispose();
-        cov.dispose();
-        svd.s.dispose();
-        svd.u.dispose();
-        svd.v.dispose();
-        components.dispose();
-        
-        return projected;
-    }
-
-    /**
-     * t-SNEの実行（簡易版・安全実装）
-     */
-    async performTSNE(tensor) {
-        console.log('🔄 t-SNE風の次元削減計算中...');
-        
-        const disposables = []; // 後でまとめて dispose するため
-        
-        try {
-            const [numSamples, numFeatures] = tensor.shape;
-            console.log(`データ形状: ${numSamples} x ${numFeatures}`);
-            
-            if (numSamples < 3 || numFeatures < 2) {
-                throw new Error(`入力データの形状が不正: [${numSamples}, ${numFeatures}]`);
+                // 終盤: 緩やかな微調整
+                const localProgress = (progress - 0.7) / 0.3;
+                temperature = initialTemp * 0.1 * Math.exp(-localProgress * 3);
             }
             
-            // データの正規化（数値安定性を向上）
-            const mean = tensor.mean(0);
-            disposables.push(mean);
-            
-            const centered = tensor.sub(mean);
-            disposables.push(centered);
-            
-            // ゼロ分散を避けるため小さな値を加算
-            const variance = centered.square().mean(0);
-            const std = tf.sqrt(variance.add(tf.scalar(1e-8)));
-            disposables.push(variance, std);
-            
-            const normalized = centered.div(std);
-            disposables.push(normalized);
-            
-            // ランダム射影の次元数を適切に設定
-            const targetDim = Math.min(Math.max(10, Math.floor(numFeatures / 4)), 50);
-            console.log(`中間次元: ${targetDim}`);
-            
-            // ランダム射影行列（より数値安定）
-            const randomMatrix = tf.randomNormal([numFeatures, targetDim], 0, Math.sqrt(2/numFeatures));
-            disposables.push(randomMatrix);
-            
-            // 初期次元削減
-            const reduced = normalized.matMul(randomMatrix);
-            disposables.push(reduced);
-            
-            // さらに2次元への射影
-            const reducedMean = reduced.mean(0);
-            const reducedCentered = reduced.sub(reducedMean);
-            disposables.push(reducedMean, reducedCentered);
-            
-            // 共分散行列計算（数値安定性向上）
-            const covFactor = Math.max(numSamples - 1, 1);
-            const covariance = reducedCentered.transpose().matMul(reducedCentered).div(tf.scalar(covFactor));
-            disposables.push(covariance);
-            
-            // 主要な2つの固有ベクトルを近似計算
-            const components = await this.computeTopEigenvectors(covariance, targetDim, 2);
-            disposables.push(components);
-            
-            // 最終的な2次元射影
-            const result = reducedCentered.matMul(components);
-            
-            // 結果の妥当性チェック
-            if (result.shape[0] !== numSamples || result.shape[1] !== 2) {
-                throw new Error(`出力形状が不正: [${result.shape.join(', ')}]`);
-            }
-            
-            return result;
-
-        } catch (error) {
-            console.error('❌ t-SNE計算エラー:', error);
-            throw error;
-        } finally {
-            // メモリクリーンアップ
-            disposables.forEach(tensor => {
-                if (tensor && !tensor.isDisposed) {
-                    tensor.dispose();
-                }
+            // 力をリセット
+            positions.forEach(pos => {
+                pos.vx = 0;
+                pos.vy = 0;
             });
+            
+            // 全ペアについて力を計算（絶対+相対類似度最適化）
+            for (let i = 0; i < selectedSongs.length; i++) {
+                for (let j = i + 1; j < selectedSongs.length; j++) {
+                    const absSimilarity = similarities.get(`${i}-${j}`);
+                    const relSimilarityI = relativeSimilarities.get(`${i}-${j}`);
+                    const relSimilarityJ = relativeSimilarities.get(`${j}-${i}`);
+                    const avgRelSimilarity = (relSimilarityI + relSimilarityJ) / 2;
+                    
+                    // 絶対70% + 相対30%の重み付き類似度
+                    const combinedSimilarity = absSimilarity * 0.7 + avgRelSimilarity * 0.3;
+                    
+                    const dx = positions[j].x - positions[i].x;
+                    const dy = positions[j].y - positions[i].y;
+                    const currentDistance = Math.sqrt(dx * dx + dy * dy) + 0.1;
+                    
+                    // 組み合わせ類似度を理想距離に非線形マッピング
+                    const simPower = Math.pow(1 - combinedSimilarity, 2); // 2乗で差を拡大
+                    const idealDistance = 3 + simPower * 507; // 3px～510px
+                    
+                    // 距離誤差を計算
+                    const distanceError = currentDistance - idealDistance;
+                    
+                    // 適応的力の計算（組み合わせ類似度を使用）
+                    let forceStrength;
+                    
+                    if (combinedSimilarity > 0.8) {
+                        // 高類似度: 強力な引力
+                        forceStrength = Math.abs(distanceError) * 0.08 * (1 + combinedSimilarity);
+                    } else if (combinedSimilarity > 0.5) {
+                        // 中類似度: 標準的な力
+                        forceStrength = Math.abs(distanceError) * 0.05;
+                    } else {
+                        // 低類似度: 強力な反発
+                        forceStrength = Math.abs(distanceError) * 0.06 * (2 - combinedSimilarity);
+                    }
+                    
+                    // 距離が大きく離れている場合は力を増強
+                    if (Math.abs(distanceError) > 100) {
+                        forceStrength *= 1.5;
+                    }
+                    
+                    const force = Math.sign(distanceError) * forceStrength;
+                    
+                    const fx = (dx / currentDistance) * force;
+                    const fy = (dy / currentDistance) * force;
+                    
+                    // 力を適用（理想距離に向かって移動）
+                    positions[i].vx += fx * temperature;
+                    positions[i].vy += fy * temperature;
+                    positions[j].vx -= fx * temperature;
+                    positions[j].vy -= fy * temperature;
+                    
+                    // 重なり許容（最小限の重なり防止のみ）
+                    if (currentDistance < 2) {
+                        const antiOverlapForce = 5 / (currentDistance + 1);
+                        const fx_overlap = (dx / currentDistance) * antiOverlapForce;
+                        const fy_overlap = (dy / currentDistance) * antiOverlapForce;
+                        
+                        positions[i].vx -= fx_overlap * temperature * 0.3;
+                        positions[i].vy -= fy_overlap * temperature * 0.3;
+                        positions[j].vx += fx_overlap * temperature * 0.3;
+                        positions[j].vy += fy_overlap * temperature * 0.3;
+                    }
+                }
+            }
+            
+            // 位置更新と制約（元に戻す）
+            positions.forEach(pos => {
+                // 中心への軽い引力（外周への逃げを防ぐ）
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const centerDx = centerX - pos.x;
+                const centerDy = centerY - pos.y;
+                const centerDistance = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
+                
+                if (centerDistance > 200) {
+                    const centerForce = (centerDistance - 200) * 0.001;
+                    pos.vx += (centerDx / centerDistance) * centerForce * temperature;
+                    pos.vy += (centerDy / centerDistance) * centerForce * temperature;
+                }
+                
+                // 速度制限（暴走防止）
+                const maxVelocity = 50 * temperature;
+                const currentVel = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
+                if (currentVel > maxVelocity) {
+                    pos.vx = (pos.vx / currentVel) * maxVelocity;
+                    pos.vy = (pos.vy / currentVel) * maxVelocity;
+                }
+                
+                pos.x += pos.vx * temperature;
+                pos.y += pos.vy * temperature;
+                
+                // 適応的摩擦（温度に応じて調整）
+                const friction = 0.7 + temperature * 0.2;
+                pos.vx *= friction;
+                pos.vy *= friction;
+                
+                // 境界内に制限
+                pos.x = Math.max(50, Math.min(width - 50, pos.x));
+                pos.y = Math.max(50, Math.min(height - 50, pos.y));
+            });
+            
+            // プログレス表示と収束判定
+            if (iter % 50 === 0) {
+                // 類似度-距離の誤差を計算
+                let totalError = 0;
+                let totalVelocity = 0;
+                let pairCount = 0;
+                
+                for (let i = 0; i < selectedSongs.length; i++) {
+                    totalVelocity += Math.sqrt(positions[i].vx * positions[i].vx + positions[i].vy * positions[i].vy);
+                    
+                    for (let j = i + 1; j < selectedSongs.length; j++) {
+                        const absSimilarity = similarities.get(`${i}-${j}`);
+                        const relSimilarityI = relativeSimilarities.get(`${i}-${j}`);
+                        const relSimilarityJ = relativeSimilarities.get(`${j}-${i}`);
+                        const avgRelSimilarity = (relSimilarityI + relSimilarityJ) / 2;
+                        const combinedSimilarity = absSimilarity * 0.7 + avgRelSimilarity * 0.3;
+                        
+                        const dx = positions[j].x - positions[i].x;
+                        const dy = positions[j].y - positions[i].y;
+                        const actualDistance = Math.sqrt(dx * dx + dy * dy);
+                        const simPower = Math.pow(1 - combinedSimilarity, 2);
+                        const idealDistance = 3 + simPower * 507;
+                        
+                        totalError += Math.abs(actualDistance - idealDistance);
+                        pairCount++;
+                    }
+                }
+                
+                const avgError = totalError / pairCount;
+                const avgVelocity = totalVelocity / selectedSongs.length;
+                
+                console.log(`🔄 Force-Directed Layout: ${Math.round((iter / iterations) * 100)}% (温度: ${temperature.toFixed(3)}, 誤差: ${avgError.toFixed(1)}px, 速度: ${avgVelocity.toFixed(2)})`);
+                
+                // 速度ベースの早期収束判定
+                if (iter > 200 && avgVelocity < 0.01) {
+                    console.log(`🎯 早期収束達成 (${iter}/${iterations}回)`);
+                    break;
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
         }
+        
+        console.log('✅ Force-Directed Layout完了');
+        
+        // 結果をChart.js形式に変換
+        return positions.map((pos, index) => ({
+            x: pos.x,
+            y: pos.y,
+            song: selectedSongs[index]
+        }));
     }
 
     /**
-     * 主要固有ベクトルの近似計算（数値安定版）
+     * 可視化結果の描画
      */
-    async computeTopEigenvectors(covariance, inputDim, numVectors) {
-        const vectors = [];
+    renderVisualization(layoutData) {
+        console.log(`🎨 可視化を描画中... ${layoutData.length}楽曲`);
         
-        for (let k = 0; k < numVectors; k++) {
-            // ランダム初期ベクトル
-            let v = tf.randomNormal([inputDim, 1], 0, 0.1);
+        // プロットの範囲を計算
+        const plotBounds = this.calculatePlotBounds(layoutData);
+        
+        // Chart.js用のデータセット作成
+        const datasets = this.createDatasets(layoutData);
+        
+        // チャートの作成・更新
+        this.renderChart(layoutData, plotBounds);
+        
+        this.cachedVisualization = {
+            datasets: datasets,
+            rawData: layoutData,
+            plotBounds: plotBounds
+        };
+    }
+
+    /**
+     * プロットの境界を計算
+     */
+    calculatePlotBounds(layoutData) {
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        
+        layoutData.forEach(point => {
+            minX = Math.min(minX, point.x);
+            maxX = Math.max(maxX, point.x);
+            minY = Math.min(minY, point.y);
+            maxY = Math.max(maxY, point.y);
+        });
+        
+        // 余白を追加（範囲の10%）
+        const xMargin = (maxX - minX) * 0.1;
+        const yMargin = (maxY - minY) * 0.1;
+        
+        return {
+            minX: minX - xMargin,
+            maxX: maxX + xMargin,
+            minY: minY - yMargin,
+            maxY: maxY + yMargin
+        };
+    }
+
+    /**
+     * レイアウトデータからChart.js用データセットを作成
+     */
+    createDatasets(layoutData) {
+        const datasetMap = new Map();
+        
+        layoutData.forEach(item => {
+            const genre = item.song.genre || 'その他';
             
-            // 既存のベクトルと直交化
-            for (const existingV of vectors) {
-                const dot = existingV.transpose().matMul(v);
-                v = v.sub(existingV.mul(dot));
+            if (!datasetMap.has(genre)) {
+                datasetMap.set(genre, []);
             }
             
-            // Power iteration（収束チェック付き）
-            let prevNorm = 0;
-            for (let i = 0; i < 20; i++) {
-                v = covariance.matMul(v);
-                
-                // 既存のベクトルと再直交化
-                for (const existingV of vectors) {
-                    const dot = existingV.transpose().matMul(v);
-                    v = v.sub(existingV.mul(dot));
-                }
-                
-                // ノルム計算（null チェック付き）
-                const normTensor = tf.norm(v);
-                const normData = await normTensor.data();
-                normTensor.dispose();
-                
-                if (!normData || normData.length === 0) {
-                    console.warn(`固有ベクトル${k+1}のノルム計算に失敗しました`);
-                    break;
-                }
-                
-                const norm = normData[0];
-                if (norm < 1e-10) {
-                    console.warn(`固有ベクトル${k+1}の計算でゼロベクトルになりました`);
-                    break;
-                }
-                
-                // 正規化（メモリリーク対策）
-                const normTensorForDiv = tf.norm(v);
-                const oldV = v;
-                v = v.div(normTensorForDiv);
-                normTensorForDiv.dispose();
-                // 古いテンソルの安全な破棄
-                if (oldV && typeof oldV.dispose === 'function' && !oldV.isDisposed) {
-                    oldV.dispose();
-                }
-                
-                // 収束判定
-                if (Math.abs(norm - prevNorm) < 1e-6) {
-                    console.log(`固有ベクトル${k+1}が${i+1}回で収束`);
-                    break;
-                }
-                prevNorm = norm;
-            }
-            
-            vectors.push(v);
-        }
+            datasetMap.get(genre).push({
+                x: item.x,
+                y: item.y,
+                title: item.song.title,
+                artist: item.song.artist_group,
+                genre: genre,
+                songData: item.song
+            });
+        });
         
-        return tf.concat(vectors, 1);
+        // データセット配列を作成
+        const datasets = [];
+        const genres = Array.from(datasetMap.keys()).sort();
+        
+        genres.forEach(genre => {
+            const points = datasetMap.get(genre);
+            const color = this.genreColors[genre] || this.getRandomColor();
+            
+            datasets.push({
+                label: genre,
+                data: points,
+                backgroundColor: color,
+                borderColor: color,
+                borderWidth: 1,
+                pointRadius: this.getResponsivePointRadius(),
+                pointHoverRadius: this.getResponsivePointRadius() + 4,
+                showLine: false
+            });
+        });
+        
+        return datasets;
     }
 
     /**
      * チャートの描画
      */
-    renderChart(coords) {
+    renderChart(layoutData, plotBounds) {
         const ctx = document.getElementById('visualizationCanvas');
         
         // 既存チャートの確実な破棄
@@ -513,7 +626,7 @@ class VisualizationManager {
         }
 
         // データポイントの準備
-        const datasets = this.prepareDatasets(coords);
+        const datasets = this.prepareDatasets(layoutData);
 
         console.log(`🏷️ datalabels設定: display=${this.showLabels}, fontSize=${this.getResponsiveFontSize()}`);
 
@@ -521,9 +634,18 @@ class VisualizationManager {
             type: 'scatter',
             data: { datasets },
             options: {
+                onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                },
                 onClick: (_, elements) => {
-                    if (elements.length > 0) {
-                        this.handlePointClick(elements[0]);
+                    // パン操作中でない場合のみポイントクリックを処理
+                    if (elements.length > 0 && !this.isPanning) {
+                        // 小さな遅延でクリックとドラッグを区別
+                        setTimeout(() => {
+                            if (!this.isPanning) {
+                                this.handlePointClick(elements[0]);
+                            }
+                        }, 10);
                     }
                 },
                 responsive: true,
@@ -534,12 +656,10 @@ class VisualizationManager {
                 },
                 plugins: {
                     title: {
-                        display: true,
-                        text: `🌌Lyric Constellation Map (t-SNE)`,
-                        font: { size: 16 }
+                        display: false
                     },
                     legend: {
-                        display: true, // 常時表示
+                        display: this.showLegend,
                         position: window.innerWidth <= 768 ? 'bottom' : 'right',
                         maxWidth: window.innerWidth <= 768 ? undefined : 200,
                         maxHeight: window.innerWidth <= 768 ? 150 : undefined
@@ -550,33 +670,67 @@ class VisualizationManager {
                                 const datasetIndex = context[0].datasetIndex;
                                 const dataIndex = context[0].dataIndex;
                                 const dataset = this.chart.data.datasets[datasetIndex];
-                                return dataset.data[dataIndex].songData.title;
+                                const songTitle = dataset.data[dataIndex].songData.title;
+                                return `View Links of "${songTitle}"`;
                             },
                             label: () => {
                                 return ''; // 追加情報は表示しない
                             }
                         }
                     },
-                    datalabels: this.getSafeDatalabelsConfig()
+                    datalabels: this.getSafeDatalabelsConfig(),
+                    zoom: {
+                        limits: {
+                            x: {min: -1000, max: 1000},
+                            y: {min: -1000, max: 1000}
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'xy',
+                            modifierKey: null, // 修飾キー不要
+                            onPanStart: () => {
+                                this.isPanning = true;
+                                return true;
+                            },
+                            onPanComplete: () => {
+                                setTimeout(() => {
+                                    this.isPanning = false;
+                                }, 50);
+                                return true;
+                            }
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                                speed: 0.1
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'xy'
+                        }
+                    }
                 },
                 scales: {
                     x: {
                         title: {
-                            display: true,
-                            text: `t-SNE Component 1`
+                            display: false
                         },
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)'
-                        }
+                        },
+                        min: plotBounds.minX,
+                        max: plotBounds.maxX
                     },
                     y: {
                         title: {
-                            display: true,
-                            text: `t-SNE Component 2`
+                            display: false
                         },
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)'
-                        }
+                        },
+                        min: plotBounds.minY,
+                        max: plotBounds.maxY
                     }
                 },
                 elements: {
@@ -592,31 +746,34 @@ class VisualizationManager {
     /**
      * データセットの準備
      */
-    prepareDatasets(coords) {
+    prepareDatasets(layoutData) {
         // 常にジャンル別データセットを使用
-        return this.prepareGenreBasedDatasets(coords);
+        return this.prepareGenreBasedDatasets(layoutData);
     }
 
     /**
      * ジャンル別データセット
      */
-    prepareGenreBasedDatasets(coords) {
+    prepareGenreBasedDatasets(layoutData) {
         const artistGroups = {};
 
-        this.currentData.forEach((song, index) => {
-            // アーティストグループで色分け
-            const artist = song.artist_group || song.artists || 'Unknown';
+        layoutData.forEach((item) => {
+            // 散布図では元のアーティスト名を使用（マッピングしない）
+            const artist = item.song.artist_group?.trim() || 'ソロ・その他';
             if (!artistGroups[artist]) {
                 artistGroups[artist] = [];
             }
             artistGroups[artist].push({
-                x: coords[index][0],
-                y: coords[index][1],
-                songData: song
+                x: item.x,
+                y: item.y,
+                songData: item.song
             });
         });
 
-        return Object.entries(artistGroups).map(([artist, points]) => {
+        // 設定ファイルの順序でアーティストをソート
+        const sortedArtists = window.AppConfig.sortByOrder(artistGroups, window.AppConfig.artistOrder);
+
+        return sortedArtists.map(([artist, points]) => {
             // カスタム色を取得、なければ生成
             let color = this.genreColors[artist];
             if (!color) {
@@ -675,38 +832,8 @@ class VisualizationManager {
      * ジャンル色の生成
      */
     generateGenreColors() {
-        // UIManagerと同じ色設定を使用
-        const baseColors = {
-            'Edel Note': '#d4d4d4',
-            '蓮ノ空女学院スクールアイドルクラブ': '#ffc0cb',
-            'スリーズブーケ': '#e95464',
-            'みらくらぱーく!': '#ffff00',
-            'DOLLCHESTRA': '#0000ff',
-            '藤島慈(CV.月音こな)': '#C8C2C6',
-            '夕霧綴理(CV.佐々木琴子)': '#BA2636',
-            '乙宗梢(CV.花宮初奈)': '#68BE8D'
-        };
-
-        // アーティスト名をキーとして色を設定
-        const artistColors = {};
-        Object.entries(baseColors).forEach(([artist, color]) => {
-            artistColors[artist] = color;
-        });
-
-        return artistColors;
-    }
-
-    /**
-     * 可視化の更新
-     */
-    async updateVisualization() {
-        if (!this.currentData) {
-            this.showError('可視化するデータがありません');
-            return;
-        }
-
-        await this.performDimensionReduction();
-        this.updateVisualizationInfo();
+        // 設定ファイルの色設定を使用
+        return { ...window.AppConfig.artistColors };
     }
 
     /**
@@ -718,17 +845,16 @@ class VisualizationManager {
 
         const stats = {
             songCount: this.currentData.length,
-            method: 't-SNE',
+            method: 'Force-Directed Layout',
             genres: [...new Set(this.currentData.map(s => s.genre))].length,
             showLabels: this.showLabels
         };
 
         infoEl.innerHTML = `
-            <strong>可視化情報:</strong><br>
-            楽曲数: ${stats.songCount}曲 | 
-            手法: ${stats.method} | 
-            ジャンル数: ${stats.genres} | 
-            ラベル表示: ${stats.showLabels ? 'ON' : 'OFF'}
+            <strong>Information:</strong><br>
+            Songs: ${stats.songCount}曲 | 
+            Method: ${stats.method} | 
+            Labels: ${stats.showLabels ? 'ON' : 'OFF'}
         `;
     }
 
@@ -842,22 +968,22 @@ class VisualizationManager {
                 },
                 formatter: (_, context) => {
                     try {
-                        // 安全なデータアクセス
+                        // contextから直接データを取得
                         const datasetIndex = context.datasetIndex;
                         const dataIndex = context.dataIndex;
+                        const chart = context.chart;
                         
-                        // チャートの存在確認
-                        if (!this.chart || !this.chart.data || !this.chart.data.datasets) {
+                        if (!chart || !chart.data || !chart.data.datasets) {
                             return '';
                         }
                         
-                        const dataset = this.chart.data.datasets[datasetIndex];
+                        const dataset = chart.data.datasets[datasetIndex];
                         if (!dataset || !dataset.data || !dataset.data[dataIndex]) {
                             return '';
                         }
                         
-                        const songData = dataset.data[dataIndex].songData;
-                        return songData ? songData.title : '';
+                        const point = dataset.data[dataIndex];
+                        return point && point.songData ? point.songData.title : '';
                         
                     } catch (error) {
                         console.warn('⚠️ datalabels formatter エラー:', error);
@@ -866,7 +992,12 @@ class VisualizationManager {
                 },
                 align: 'top',
                 offset: 8,
-                clip: false
+                clip: true,
+                backgroundColor: 'rgba(255, 255, 255, 0.8)', // 背景を少し透明な白に
+                borderColor: '#ccc',
+                borderWidth: 1,
+                borderRadius: 4,
+                padding: 2
             };
         }
         
@@ -936,6 +1067,100 @@ class VisualizationManager {
     }
 
     /**
+     * 凡例表示の更新
+     */
+    updateLegendDisplay() {
+        if (this.chart && this.chart.options) {
+            this.chart.options.plugins.legend.display = this.showLegend;
+            this.chart.update('none'); // アニメーションなしで即座に更新
+        }
+    }
+
+    /**
+     * ズームのリセット
+     */
+    resetZoom() {
+        if (this.chart && this.chart.resetZoom) {
+            this.chart.resetZoom();
+            console.log('🔄 ズームをリセットしました');
+        } else {
+            console.warn('⚠️ ズームプラグインが利用できません');
+        }
+    }
+
+    /**
+     * ズームイン
+     */
+    zoomIn() {
+        if (this.chart && this.chart.zoom) {
+            this.chart.zoom(1.2);
+            console.log('🔍 ズームインしました');
+        } else {
+            console.warn('⚠️ ズームプラグインが利用できません');
+        }
+    }
+
+    /**
+     * ズームアウト
+     */
+    zoomOut() {
+        if (this.chart && this.chart.zoom) {
+            this.chart.zoom(0.8);
+            console.log('🔍 ズームアウトしました');
+        } else {
+            console.warn('⚠️ ズームプラグインが利用できません');
+        }
+    }
+
+    /**
+     * 上方向にパン
+     */
+    panUp() {
+        if (this.chart && this.chart.pan) {
+            this.chart.pan({x: 0, y: 50});
+            console.log('⬆️ 上方向にパンしました');
+        } else {
+            console.warn('⚠️ パン機能が利用できません');
+        }
+    }
+
+    /**
+     * 下方向にパン
+     */
+    panDown() {
+        if (this.chart && this.chart.pan) {
+            this.chart.pan({x: 0, y: -50});
+            console.log('⬇️ 下方向にパンしました');
+        } else {
+            console.warn('⚠️ パン機能が利用できません');
+        }
+    }
+
+    /**
+     * 左方向にパン
+     */
+    panLeft() {
+        if (this.chart && this.chart.pan) {
+            this.chart.pan({x: 50, y: 0});
+            console.log('⬅️ 左方向にパンしました');
+        } else {
+            console.warn('⚠️ パン機能が利用できません');
+        }
+    }
+
+    /**
+     * 右方向にパン
+     */
+    panRight() {
+        if (this.chart && this.chart.pan) {
+            this.chart.pan({x: -50, y: 0});
+            console.log('➡️ 右方向にパンしました');
+        } else {
+            console.warn('⚠️ パン機能が利用できません');
+        }
+    }
+
+    /**
      * チャートのクリーンアップ
      */
     cleanup() {
@@ -944,6 +1169,7 @@ class VisualizationManager {
             this.chart = null;
         }
         this.currentData = null;
+        this.cachedVisualization = null;
     }
 }
 
