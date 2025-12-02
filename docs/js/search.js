@@ -7,6 +7,7 @@ class SearchManager {
         this.currentGenreFilter = '';
         this.currentArtistFilter = '';
         this.currentMemberFilter = '';
+        this.releaseSort = 'initial'; // 'initial' (古い順) or 'latest' (新しい順)
         this.searchResults = [];
         this.searchTimeout = null;
     }
@@ -27,6 +28,8 @@ class SearchManager {
         const clearBtn = document.getElementById('clearBtn');
         const artistFilter = document.getElementById('artistFilter');
         const memberFilter = document.getElementById('memberFilter');
+        const sortInitialBtn = document.getElementById('sortInitialBtn');
+        const sortLatestBtn = document.getElementById('sortLatestBtn');
 
         // 検索入力のイベント
         searchInput.addEventListener('input', (e) => {
@@ -48,6 +51,15 @@ class SearchManager {
         memberFilter.addEventListener('change', (e) => {
             this.currentMemberFilter = e.target.value;
             this.performSearch();
+        });
+
+        // リリース順ソートボタンのイベント
+        sortInitialBtn.addEventListener('click', () => {
+            this.setReleaseSort('initial');
+        });
+
+        sortLatestBtn.addEventListener('click', () => {
+            this.setReleaseSort('latest');
         });
     }
 
@@ -120,7 +132,7 @@ class SearchManager {
      * 検索実行
      */
     performSearch() {
-        console.log(`🔍 検索実行: "${this.currentQuery}" | アーティスト: "${this.currentArtistFilter}" | メンバー: "${this.currentMemberFilter}"`);
+        console.log(`🔍 検索実行: "${this.currentQuery}" | アーティスト: "${this.currentArtistFilter}" | メンバー: "${this.currentMemberFilter}" | ソート: ${this.releaseSort}`);
 
         this.searchResults = window.dataLoader.searchSongs(
             this.currentQuery,
@@ -128,6 +140,9 @@ class SearchManager {
             this.currentArtistFilter,
             this.currentMemberFilter
         );
+
+        // リリース日でソート
+        this.searchResults = this.sortByRelease(this.searchResults);
 
         console.log(`📋 検索結果: ${this.searchResults.length}件`);
 
@@ -162,11 +177,18 @@ class SearchManager {
         const artistFilter = document.getElementById('artistFilter');
         const memberFilter = document.getElementById('memberFilter');
         const clearBtn = document.getElementById('clearBtn');
+        const sortInitialBtn = document.getElementById('sortInitialBtn');
+        const sortLatestBtn = document.getElementById('sortLatestBtn');
 
         searchInput.value = '';
         artistFilter.value = '';
         memberFilter.value = '';
         clearBtn.style.display = 'none';
+
+        // ソート設定もリセット
+        this.releaseSort = 'initial';
+        sortInitialBtn.classList.add('active');
+        sortLatestBtn.classList.remove('active');
 
         this.currentQuery = '';
         this.currentGenreFilter = '';
@@ -193,6 +215,63 @@ class SearchManager {
         this.performSearch();
 
         return true;
+    }
+
+    /**
+     * リリース順ソートの設定
+     */
+    setReleaseSort(sortType) {
+        this.releaseSort = sortType;
+        
+        // ボタンのアクティブ状態を更新
+        const sortInitialBtn = document.getElementById('sortInitialBtn');
+        const sortLatestBtn = document.getElementById('sortLatestBtn');
+        
+        if (sortType === 'initial') {
+            sortInitialBtn.classList.add('active');
+            sortLatestBtn.classList.remove('active');
+        } else {
+            sortInitialBtn.classList.remove('active');
+            sortLatestBtn.classList.add('active');
+        }
+        
+        // 検索を再実行
+        this.performSearch();
+    }
+
+    /**
+     * リリース日でソート
+     */
+    sortByRelease(songs) {
+        return songs.sort((a, b) => {
+            const dateA = this.parseReleaseDate(a.release);
+            const dateB = this.parseReleaseDate(b.release);
+            
+            if (this.releaseSort === 'initial') {
+                // 古い順（昇順）
+                return dateA - dateB;
+            } else {
+                // 新しい順（降順）
+                return dateB - dateA;
+            }
+        });
+    }
+
+    /**
+     * リリース日の文字列をDateオブジェクトに変換
+     */
+    parseReleaseDate(releaseString) {
+        if (!releaseString) {
+            // リリース日がない場合は最も古い日付として扱う
+            return new Date('1900-01-01');
+        }
+        
+        // "YYYY/MM/DD" または "YYYY-MM-DD" 形式に対応
+        const cleaned = releaseString.replace(/[/-]/g, '-');
+        const date = new Date(cleaned);
+        
+        // 無効な日付の場合は最も古い日付として扱う
+        return isNaN(date.getTime()) ? new Date('1900-01-01') : date;
     }
 
     /**
