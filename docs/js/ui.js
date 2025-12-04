@@ -148,6 +148,9 @@ class UIManager {
         this.currentView = 'songs';
         this.currentSelectedSong = null;
         
+        // ページの一番上にスクロール
+        window.scrollTo(0, 0);
+        
         // sessionStorageをクリア
         sessionStorage.removeItem('visualizationToSimilar');
         sessionStorage.removeItem('selectedSongsForVisualization');
@@ -180,6 +183,9 @@ class UIManager {
         this.currentView = 'similar';
         this.currentSelectedSong = song;
 
+        // ページの一番上にスクロール
+        window.scrollTo(0, 0);
+
         // 散布図から遷移した場合の選択楽曲フィルタを設定
         if (sessionStorage.getItem('visualizationToSimilar') === 'true') {
             const selectedSongs = JSON.parse(sessionStorage.getItem('selectedSongsForVisualization') || '[]');
@@ -211,7 +217,10 @@ class UIManager {
         visualizationSection.style.display = 'block';
         
         this.currentView = 'visualization';
-        
+
+        // ページの一番上にスクロール
+        window.scrollTo(0, 0);
+
         // 可視化実行
         if (window.visualizationManager) {
             await window.visualizationManager.visualize(selectedSongs);

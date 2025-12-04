@@ -10,6 +10,12 @@ if (typeof ChartDataLabels !== 'undefined') {
     console.warn('⚠️ ChartDataLabelsプラグインが見つかりません。代替手段を使用します');
 }
 
+if (typeof Hammer !== 'undefined') {
+    console.log('✅ Hammer.js は正常に読み込まれています');
+} else {
+    console.error('❌ Hammer.js が見つかりません！タッチ操作が動きません。');
+}
+
 // Chart.js zoomプラグインを登録
 if (typeof window.zoomPlugin !== 'undefined') {
     Chart.register(window.zoomPlugin);
@@ -607,6 +613,10 @@ class VisualizationManager {
      */
     renderChart(layoutData, plotBounds) {
         const ctx = document.getElementById('visualizationCanvas');
+
+        if (ctx) {
+            ctx.style.touchAction = 'none'; 
+        }
         
         // 既存チャートの確実な破棄
         if (this.chart) {
@@ -629,6 +639,23 @@ class VisualizationManager {
         const datasets = this.prepareDatasets(layoutData);
 
         console.log(`🏷️ datalabels設定: display=${this.showLabels}, fontSize=${this.getResponsiveFontSize()}`);
+
+        const BackgroundPainter = {
+            id: 'backgroundPainter',
+            // beforeDraw フックは、Chart.jsが軸やデータセットを描画する前に実行されます。
+            beforeDraw: (chart, args, options) => {
+                const ctx = chart.canvas.getContext('2d');
+                ctx.save(); // 現在の描画状態を保存
+                
+                // 背景色を白に設定
+                ctx.fillStyle = options.backgroundColor || 'white';
+                
+                // キャンバス全体を塗りつぶす
+                ctx.fillRect(0, 0, chart.width, chart.height);
+                
+                ctx.restore(); // 描画状態を元に戻す
+            }
+        };
 
         this.chart = new Chart(ctx, {
             type: 'scatter',
@@ -688,6 +715,7 @@ class VisualizationManager {
                             enabled: true,
                             mode: 'xy',
                             modifierKey: null, // 修飾キー不要
+                            threshold: 10,
                             onPanStart: () => {
                                 this.isPanning = true;
                                 return true;
@@ -696,20 +724,29 @@ class VisualizationManager {
                                 setTimeout(() => {
                                     this.isPanning = false;
                                 }, 50);
+                                if (this.chart) {
+                                    this.chart.update('none'); 
+                                }
                                 return true;
                             }
                         },
                         zoom: {
                             wheel: {
                                 enabled: true,
-                                speed: 0.1
+                                speed: 0.15
                             },
                             pinch: {
                                 enabled: true
                             },
-                            mode: 'xy'
+                            mode: 'xy',
+                            onZoomComplete: () => {
+                                if (this.chart) {
+                                    this.chart.update('none'); 
+                                }
+                            }
                         }
-                    }
+                    },
+                    BackgroundPainter
                 },
                 scales: {
                     x: {
@@ -717,7 +754,13 @@ class VisualizationManager {
                             display: false
                         },
                         grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
+                            display: true
+                        },
+                        ticks: {
+                            display: false
+                        },
+                        border: {
+                            display: false
                         },
                         min: plotBounds.minX,
                         max: plotBounds.maxX
@@ -727,7 +770,13 @@ class VisualizationManager {
                             display: false
                         },
                         grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
+                            display: true
+                        },
+                        ticks: {
+                            display: false
+                        },
+                        border: {
+                            display: false
                         },
                         min: plotBounds.minY,
                         max: plotBounds.maxY
