@@ -635,9 +635,8 @@ class UIManager {
         const metadata = window.dataLoader.getMetadata();
 
         statsEl.innerHTML = `
-            <div>総楽曲数: ${stats.totalSongs}</div>
-            <div>ジャンル数: ${stats.totalGenres} | アーティスト数: ${stats.totalArtists}</div>
-            ${metadata.export_info ? `<div>バージョン: ${metadata.export_info.version}</div>` : ''}
+            <div>Total Songs: ${stats.totalSongs}</div>
+            ${metadata.export_info ? `<div>Version: ${metadata.export_info.version}</div>` : ''}
         `;
     }
 
