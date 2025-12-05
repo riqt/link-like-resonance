@@ -82,8 +82,9 @@ class VisualizationManager {
         showLabelsCheck.checked = true;
         showLabelsCheck.addEventListener('change', (e) => {
             this.showLabels = e.target.checked;
-            if (this.chart) {
-                this.chart.update();
+            if (this.chart && typeof ChartDataLabels !== 'undefined') {
+                this.chart.options.plugins.datalabels.display = this.showLabels;
+                this.chart.update('none');
             }
         });
 
@@ -911,9 +912,8 @@ class VisualizationManager {
 
         infoEl.innerHTML = `
             <strong>Information:</strong><br>
-            Songs: ${stats.songCount}曲 | 
-            Method: ${stats.method} | 
-            Labels: ${stats.showLabels ? 'ON' : 'OFF'}
+            Songs: ${stats.songCount} | 
+            Method: ${stats.method}
         `;
     }
 
