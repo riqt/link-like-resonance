@@ -1,5 +1,10 @@
 Change Log
 ==
+## 1.1.3 - 2026/02/18
+- 新規リリースを追加
+  - 「Echoes Beyond」「JOKER.」
+  - 「Sayo-Shigure」「リブウト」「Hip, hip, hooray!」「令嬢モブ!」
+
 ## 1.1.2 - 2026/01/24
 - 新規リリースを追加
   - 「Berry Merry Go Round」「フリジア」「PANAI☆」「咲かnow!」
