@@ -1,17 +1,17 @@
 {
   "export_info": {
-    "version": "1.1.2 (2026/01/24)",
+    "version": "1.1.3 (2026/02/18)",
     "description": "ベクトル検索システム",
     "copyright_notice": ""
   },
   "system_info": {
     "faiss_available": true,
-    "songs_count": 131,
+    "songs_count": 137,
     "embeddings_shape": [
-      131,
+      137,
       3072
     ],
-    "metadata_count": 131,
+    "metadata_count": 137,
     "index_available": true,
     "files": {
       "songs": true,
@@ -21,7 +21,7 @@
     }
   },
   "statistics": {
-    "total_songs": 131,
+    "total_songs": 137,
     "data_files": {
       "songs": true,
       "similarities": true
